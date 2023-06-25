@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:kasie_transie_library/bloc/the_great_geofencer.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
+import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
+import 'package:kasie_transie_library/messaging/heartbeat.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
+import 'package:workmanager/workmanager.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({Key? key}) : super(key: key);
@@ -32,6 +35,17 @@ class DashboardState extends State<Dashboard>
   Future _initialize() async {
     pp('$mm initialize ...');
     theGreatGeofencer.buildGeofences();
+    fcmBloc.subscribeToTopics();
+    heartbeat.startHeartbeat();
+
+// Periodic task registration
+    Workmanager().registerPeriodicTask(
+      "periodic-task-identifier",
+      "simplePeriodicTask",
+      // When no frequency is provided the default 15 minutes is set.
+      // Minimum frequency is 15 min. Android will automatically change your frequency to 15 min if you have configured a lower frequency.
+      frequency: const Duration(minutes: 15),
+    );
   }
   Future _getCounts() async {
     pp('$mm ... get counts ...');
@@ -40,7 +54,7 @@ class DashboardState extends State<Dashboard>
   void _getCar() async {
     car = await prefs.getCar();
     if (car != null) {
-      pp('$mm resident car:');
+      pp('$mm ........... resident car:');
       myPrettyJsonPrint(car!.toJson());
       _getCounts();
       _initialize();
@@ -78,7 +92,7 @@ class DashboardState extends State<Dashboard>
                   ),
                   Text(
                     '${car!.vehicleReg}',
-                    style: myTextStyleLarge(context),
+                    style: myTextStyleLargePrimaryColor(context),
                   ),
                   const SizedBox(
                     height: 8,

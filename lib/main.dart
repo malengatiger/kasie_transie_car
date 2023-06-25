@@ -7,10 +7,12 @@ import 'package:kasie_transicar/ui/dashboard.dart';
 import 'package:kasie_transicar/widgets/splash_page.dart';
 import 'package:kasie_transie_library/bloc/theme_bloc.dart';
 import 'package:kasie_transie_library/data/schemas.dart';
+import 'package:kasie_transie_library/messaging/heartbeat.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/initializer.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:page_transition/page_transition.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'firebase_options.dart';
 
@@ -35,6 +37,11 @@ Future<void> main() async {
     pp('$mx  this car has been initialized: ${vehicle!.vehicleReg}');
 
   }
+  Workmanager().initialize(
+      callbackDispatcher, // The top level function, aka callbackDispatcher
+      isInDebugMode: true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
+  );
+  Workmanager().registerOneOffTask("task-identifier", "simpleTask");
   runApp(const KasieTransieCarApp());
 }
 

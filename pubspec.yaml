@@ -53,6 +53,7 @@ dependencies:
   focused_menu: ^1.0.5
   firebase_ui_auth: ^1.4.3
   intl: ^0.18.0
+  workmanager: ^0.5.1
   flutter_polyline_points:
   dots_indicator: ^3.0.0
   realm:

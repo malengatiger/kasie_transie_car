@@ -69,8 +69,11 @@ class VehicleListState extends State<VehicleList>
     });
   }
 
+  lm.Vehicle? car;
   Future _onCarSelected(lm.Vehicle car) async {
-    pp('$mm .... car selected ... will start loading initial data ...');
+    pp('$mm .... car selected ... will'
+        ' start loading initial data ...');
+    this.car = car;
     myPrettyJsonPrint(car.toJson());
     setState(() {
       initializing = true;
@@ -194,13 +197,13 @@ class VehicleListState extends State<VehicleList>
                     ? Positioned(
                         left: 12,
                         right: 12,
-                        bottom: 160,
-                        top: 160,
+                        bottom: 120,
+                        top: 120,
                         child: Card(
                           shape: getRoundedBorder(radius: 16),
                           elevation: 16,
                           child: SizedBox(
-                            height: 300,
+                            height: 460,
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Column(
@@ -211,6 +214,13 @@ class VehicleListState extends State<VehicleList>
                                   Text(
                                     'KasieTransie',
                                     style: myTextStyleLarge(context),
+                                  ),
+                                  const SizedBox(
+                                    height: 32,
+                                  ),
+                                  Text(
+                                    '${car!.vehicleReg}',
+                                    style: myTextStyleMediumLargeWithColor(context, Colors.teal[400]!),
                                   ),
                                   const SizedBox(
                                     height: 48,
