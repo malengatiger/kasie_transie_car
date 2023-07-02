@@ -5,7 +5,7 @@ import 'package:kasie_transicar/ui/dashboard.dart';
 import 'package:kasie_transie_library/bloc/app_auth.dart';
 import 'package:kasie_transie_library/bloc/list_api_dog.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
-import 'package:kasie_transie_library/utils/country_cities_isolate.dart';
+import 'package:kasie_transie_library/isolates/country_cities_isolate.dart';
 import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/initializer.dart';
@@ -29,12 +29,29 @@ class VehicleListState extends State<VehicleList>
 
   bool busy = false;
   var cars = <lm.Vehicle>[];
+  late StreamSubscription<bool> compSubscription;
 
   @override
   void initState() {
     _controller = AnimationController(vsync: this);
     super.initState();
+    _listen();
     _getVehicles();
+  }
+
+  void _listen() async {
+    compSubscription = initializer.completionStream.listen((completed) {
+      pp('$mm ... initializer.completionStream delivered : $completed');
+      if (timer != null) {
+        timer!.cancel();
+      }
+      if (mounted) {
+        setState(() {
+          initializing = false;
+          doneInitializing = true;
+        });
+      }
+    });
   }
 
   void _getVehicles() async {
@@ -94,6 +111,7 @@ class VehicleListState extends State<VehicleList>
       setState(() {
         doneInitializing = true;
       });
+      _navigateToDashboard();
       //
     } catch (e) {
       pp(e);
@@ -118,6 +136,7 @@ class VehicleListState extends State<VehicleList>
   @override
   void dispose() {
     _controller.dispose();
+    compSubscription.cancel();
     super.dispose();
   }
 
@@ -144,59 +163,72 @@ class VehicleListState extends State<VehicleList>
                           ),
                         ),
                       )
-                    : Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          children: [
-                            const Text('Select the vehicle for the app'),
-                            const SizedBox(
-                              height: 48,
-                            ),
-                            Expanded(
-                              child: bd.Badge(
-                                badgeContent: Text('${cars.length}'),
-                                badgeStyle: bd.BadgeStyle(
-                                    badgeColor: Colors.green[900]!,
-                                    padding: const EdgeInsets.all(12)),
-                                child: ListView.builder(
-                                    itemCount: cars.length,
-                                    itemBuilder: (ctx, index) {
-                                      final ass = cars.elementAt(index);
-                                      return GestureDetector(
-                                        onTap: () {
-                                          _onCarSelected(ass);
-                                        },
-                                        child: Card(
-                                          shape: getRoundedBorder(radius: 16),
-                                          elevation: 4,
-                                          child: ListTile(
-                                            title: Text(
-                                              '${ass.vehicleReg}',
-                                              style: myTextStyleMediumBold(
-                                                  context),
-                                            ),
-                                            subtitle: Text(
-                                              '${ass.make} ${ass.model} - ${ass.year}',
-                                              style: myTextStyleSmall(context),
-                                            ),
-                                            leading: Icon(
-                                              Icons.car_crash,
-                                              color: Theme.of(context)
-                                                  .primaryColor,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }),
+                    : initializing
+                        ? const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 6,
+                                backgroundColor: Colors.yellow,
                               ),
-                            )
-                          ],
-                        ),
-                      ),
+                            ),
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              children: [
+                                const Text('Select the vehicle for the app'),
+                                const SizedBox(
+                                  height: 48,
+                                ),
+                                Expanded(
+                                  child: bd.Badge(
+                                    badgeContent: Text('${cars.length}'),
+                                    badgeStyle: bd.BadgeStyle(
+                                        badgeColor: Colors.green[900]!,
+                                        padding: const EdgeInsets.all(12)),
+                                    child: ListView.builder(
+                                        itemCount: cars.length,
+                                        itemBuilder: (ctx, index) {
+                                          final ass = cars.elementAt(index);
+                                          return GestureDetector(
+                                            onTap: () {
+                                              _onCarSelected(ass);
+                                            },
+                                            child: Card(
+                                              shape:
+                                                  getRoundedBorder(radius: 16),
+                                              elevation: 4,
+                                              child: ListTile(
+                                                title: Text(
+                                                  '${ass.vehicleReg}',
+                                                  style: myTextStyleMediumBold(
+                                                      context),
+                                                ),
+                                                subtitle: Text(
+                                                  '${ass.make} ${ass.model} - ${ass.year}',
+                                                  style:
+                                                      myTextStyleSmall(context),
+                                                ),
+                                                leading: Icon(
+                                                  Icons.car_crash,
+                                                  color: Theme.of(context)
+                                                      .primaryColor,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }),
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
                 initializing
                     ? Positioned(
-                        left: 12,
-                        right: 12,
+                        left: 24,
+                        right: 24,
                         bottom: 120,
                         top: 120,
                         child: Card(
@@ -220,7 +252,8 @@ class VehicleListState extends State<VehicleList>
                                   ),
                                   Text(
                                     '${car!.vehicleReg}',
-                                    style: myTextStyleMediumLargeWithColor(context, Colors.teal[400]!),
+                                    style: myTextStyleMediumLargeWithColor(
+                                        context, Colors.teal[400]!, 32),
                                   ),
                                   const SizedBox(
                                     height: 48,
@@ -260,7 +293,7 @@ class VehicleListState extends State<VehicleList>
                                       Text(
                                         formattedTime,
                                         style: myTextStyleMediumLargeWithColor(
-                                            context, Colors.amber[700]!),
+                                            context, Colors.amber[700]!, 28),
                                       ),
                                       const SizedBox(
                                         width: 8,

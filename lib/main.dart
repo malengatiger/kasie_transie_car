@@ -9,7 +9,6 @@ import 'package:kasie_transie_library/bloc/theme_bloc.dart';
 import 'package:kasie_transie_library/data/schemas.dart';
 import 'package:kasie_transie_library/messaging/heartbeat.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
-import 'package:kasie_transie_library/utils/initializer.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:workmanager/workmanager.dart';
@@ -20,7 +19,7 @@ late fb.FirebaseApp firebaseApp;
 fb.User? fbAuthedUser;
 var themeIndex = 0;
 Locale? locale;
-const mx = '🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵 KasieTransie RouteBuilder : main 🔵🔵';
+const mx = '🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵 KasieTransie Car : main 🔵🔵';
 Vehicle? vehicle;
 
 Future<void> main() async {
@@ -34,14 +33,17 @@ Future<void> main() async {
   if (vehicle == null) {
     pp('$mx  this car has not been initialized yet');
   } else {
-    pp('$mx  this car has been initialized: ${vehicle!.vehicleReg}');
+    pp('$mx  this car has been initialized! : ${vehicle!.vehicleReg}');
 
   }
   Workmanager().initialize(
       callbackDispatcher, // The top level function, aka callbackDispatcher
       isInDebugMode: true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
   );
-  Workmanager().registerOneOffTask("task-identifier", "simpleTask");
+  // deviceBackgroundLocation.initialize();
+  //
+  // GeolocatorPlatform.instance.
+
   runApp(const KasieTransieCarApp());
 }
 

@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kasie_transie_library/bloc/the_great_geofencer.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
+import 'package:kasie_transie_library/maps/association_route_maps.dart';
+import 'package:kasie_transie_library/maps/directions_dog.dart';
 import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/messaging/heartbeat.dart';
+import 'package:kasie_transie_library/utils/device_background_location.dart';
+import 'package:kasie_transie_library/utils/device_location_bloc.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
+import 'package:kasie_transie_library/utils/navigator_utils.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -24,6 +31,9 @@ class DashboardState extends State<Dashboard>
   var departures = 0;
   var heartbeats = 0;
   var dispatches = 0;
+  late StreamSubscription<String> routeChangesSub;
+
+  String? routeId;
 
   @override
   void initState() {
@@ -33,10 +43,23 @@ class DashboardState extends State<Dashboard>
   }
 
   Future _initialize() async {
-    pp('$mm initialize ...');
-    theGreatGeofencer.buildGeofences();
-    fcmBloc.subscribeToTopics();
+    pp('\n\n$mm initialize ...');
+    await theGreatGeofencer.buildGeofences();
+    await fcmBloc.subscribeToTopics();
     heartbeat.startHeartbeat();
+    deviceBackgroundLocation.initialize();
+
+    routeChangesSub = fcmBloc.routeChangesStream.listen((event) {
+      pp('$mm routeChangesStream delivered a routeId: $event');
+      routeId = event;
+      setState(() {
+
+      });
+      if (mounted) {
+        showSnackBar(message: "A Route update has been issued. The download will happen automatically.", context: context);
+      }
+    });
+
 
 // Periodic task registration
     Workmanager().registerPeriodicTask(
@@ -62,12 +85,22 @@ class DashboardState extends State<Dashboard>
     setState(() {});
   }
 
+  void _navigateToMap() {
+    navigateWithScale(const AssociationRouteMaps(), context);
+  }
   @override
   void dispose() {
     _controller.dispose();
+    routeChangesSub.cancel();
     super.dispose();
   }
 
+  void getDirections() async {
+    final loc = await locationBloc.getLocation();
+    final res = await directionsDog.getDirections(originLat: loc.latitude, originLng: loc.longitude,
+        destinationLat: 26.107567, destinationLng: 28.056702);
+    pp('$mm directions should be here by now ... ${res.toString()}');
+  }
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -77,6 +110,14 @@ class DashboardState extends State<Dashboard>
           'Dashboard',
           style: myTextStyleLarge(context),
         ),
+        actions: [
+          IconButton(onPressed: (){
+            _navigateToMap();
+          }, icon:  Icon(Icons.map, color: Theme.of(context).primaryColor,)),
+          IconButton(onPressed: (){
+              getDirections();
+          }, icon:  Icon(Icons.directions, color: Theme.of(context).primaryColor,))
+        ],
       ),
       body: car == null
           ? Container(
