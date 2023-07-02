@@ -79,13 +79,17 @@ class DashboardState extends State<Dashboard>
     if (car != null) {
       pp('$mm ........... resident car:');
       myPrettyJsonPrint(car!.toJson());
-      _getCounts();
+     await  _getCounts();
       _initialize();
     }
     setState(() {});
   }
 
   void _navigateToMap() {
+    navigateWithScale(const AssociationRouteMaps(), context);
+  }
+
+  void _navigateToQRCode() {
     navigateWithScale(const AssociationRouteMaps(), context);
   }
   @override
@@ -111,6 +115,9 @@ class DashboardState extends State<Dashboard>
           style: myTextStyleLarge(context),
         ),
         actions: [
+          IconButton(onPressed: (){
+            _navigateToMap();
+          }, icon:  Icon(Icons.map, color: Theme.of(context).primaryColor,)),
           IconButton(onPressed: (){
             _navigateToMap();
           }, icon:  Icon(Icons.map, color: Theme.of(context).primaryColor,)),
