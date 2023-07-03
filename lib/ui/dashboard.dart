@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:kasie_transicar/ui/car_qrcode.dart';
 import 'package:kasie_transie_library/bloc/the_great_geofencer.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
 import 'package:kasie_transie_library/maps/association_route_maps.dart';
@@ -12,6 +13,7 @@ import 'package:kasie_transie_library/utils/device_location_bloc.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/navigator_utils.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
+import 'package:kasie_transie_library/widgets/language_and_color_chooser.dart';
 import 'package:workmanager/workmanager.dart';
 
 class Dashboard extends StatefulWidget {
@@ -90,7 +92,12 @@ class DashboardState extends State<Dashboard>
   }
 
   void _navigateToQRCode() {
-    navigateWithScale(const AssociationRouteMaps(), context);
+    if (car != null) {
+      navigateWithScale( CarQrcode(vehicle: car!), context);
+    }
+  }
+  void _navigateToColor() {
+    navigateWithScale(const LanguageAndColorChooser(), context);
   }
   @override
   void dispose() {
@@ -116,11 +123,14 @@ class DashboardState extends State<Dashboard>
         ),
         actions: [
           IconButton(onPressed: (){
-            _navigateToMap();
-          }, icon:  Icon(Icons.map, color: Theme.of(context).primaryColor,)),
+            _navigateToColor();
+          }, icon:  Icon(Icons.color_lens, color: Theme.of(context).primaryColor,)),
           IconButton(onPressed: (){
             _navigateToMap();
           }, icon:  Icon(Icons.map, color: Theme.of(context).primaryColor,)),
+          IconButton(onPressed: (){
+            _navigateToQRCode();
+          }, icon:  Icon(Icons.qr_code, color: Theme.of(context).primaryColor,)),
           IconButton(onPressed: (){
               getDirections();
           }, icon:  Icon(Icons.directions, color: Theme.of(context).primaryColor,))

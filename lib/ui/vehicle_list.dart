@@ -146,7 +146,7 @@ class VehicleListState extends State<VehicleList>
         child: Scaffold(
             appBar: AppBar(
               title: Text(
-                'Association Cars',
+                'Association Vehicles',
                 style: myTextStyleLarge(context),
               ),
             ),

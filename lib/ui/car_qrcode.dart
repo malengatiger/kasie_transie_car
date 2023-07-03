@@ -12,16 +12,30 @@ class CarQrcode extends StatelessWidget {
       appBar: AppBar(
         title: Text('Vehicle QR Code', style: myTextStyleLarge(context),),
       ),
-      body: Column(
-        children: [
-          Text('${vehicle.vehicleReg}'),
-          const SizedBox(height: 48,),
-          Card(
-            shape: getRoundedBorder(radius: 16),
-            elevation: 8,
-            child: Image.network('${vehicle.qrCodeUrl}'),
-          )
-        ],
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 48,),
+            Text('${vehicle.vehicleReg}',
+              style: myTextStyleMediumLargeWithColor(context, Theme.of(context).primaryColor, 32),),
+            const SizedBox(height: 8,),
+            Text('${vehicle.associationName}', style: myTextStyleSmall(context),),
+            const SizedBox(height: 48,),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Card(
+                  shape: getRoundedBorder(radius: 16),
+                  elevation: 8,
+                  child: Image.network('${vehicle.qrCodeUrl}',
+                  height: 400, width: 400,
+                  ),
+                ),
+              ),
+            )
+          ],
+        ),
       ),
     ));
   }
