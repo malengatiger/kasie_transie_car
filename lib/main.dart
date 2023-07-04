@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart' as fb;
 import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/association_list.dart';
 import 'package:kasie_transicar/ui/dashboard.dart';
+import 'package:kasie_transicar/ui/vehicle_list.dart';
 import 'package:kasie_transicar/widgets/splash_page.dart';
 import 'package:kasie_transie_library/bloc/theme_bloc.dart';
 import 'package:kasie_transie_library/data/schemas.dart';
@@ -34,12 +35,12 @@ Future<void> main() async {
     pp('$mx  this car has not been initialized yet');
   } else {
     pp('$mx  this car has been initialized! : ${vehicle!.vehicleReg}');
-
   }
   Workmanager().initialize(
       callbackDispatcher, // The top level function, aka callbackDispatcher
-      isInDebugMode: true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
-  );
+      isInDebugMode:
+          true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
+      );
   // deviceBackgroundLocation.initialize();
   //
   // GeolocatorPlatform.instance.
@@ -53,35 +54,40 @@ class KasieTransieCarApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
-        stream: themeBloc.localeAndThemeStream,
-        builder: (ctx, snapshot) {
-          if (snapshot.hasData) {
-            pp(' 🔵 🔵 🔵'
-                'build: theme index has changed to ${snapshot.data!.themeIndex}'
-                '  and locale is ${snapshot.data!.locale.toString()}');
-            themeIndex = snapshot.data!.themeIndex;
-            locale = snapshot.data!.locale;
-            pp(' 🔵 🔵 🔵 GeoApp: build: locale object received from stream: $locale');
-          }
+    return GestureDetector(
+      onTap: () {
+        pp('$mx 🌀🌀🌀🌀 Tap detected; should dismiss keyboard ...');
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      child: StreamBuilder(
+          stream: themeBloc.localeAndThemeStream,
+          builder: (ctx, snapshot) {
+            if (snapshot.hasData) {
+              pp(' 🔵 🔵 🔵'
+                  'build: theme index has changed to ${snapshot.data!.themeIndex}'
+                  '  and locale is ${snapshot.data!.locale.toString()}');
+              themeIndex = snapshot.data!.themeIndex;
+              locale = snapshot.data!.locale;
+              pp(' 🔵 🔵 🔵 GeoApp: build: locale object received from stream: $locale');
+            }
 
-          return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              title: 'KasieTransie',
-              theme: themeBloc.getTheme(themeIndex).lightTheme,
-              darkTheme: themeBloc.getTheme(themeIndex).darkTheme,
-              themeMode: ThemeMode.system,
-              home: AnimatedSplashScreen(
-                splash: const SplashWidget(),
-                animationDuration: const Duration(milliseconds: 2000),
-                curve: Curves.easeInCirc,
-                splashIconSize: 160.0,
-                nextScreen: vehicle == null? const AssociationList() : const Dashboard(),
-                splashTransition: SplashTransition.fadeTransition,
-                pageTransitionType: PageTransitionType.leftToRight,
-                backgroundColor: Colors.purple.shade700,
-              ));
-        });
-
+            return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                title: 'KasieTransie',
+                theme: themeBloc.getTheme(themeIndex).lightTheme,
+                darkTheme: themeBloc.getTheme(themeIndex).darkTheme,
+                themeMode: ThemeMode.system,
+                home: AnimatedSplashScreen(
+                  splash: const SplashWidget(),
+                  animationDuration: const Duration(milliseconds: 2000),
+                  curve: Curves.easeInCirc,
+                  splashIconSize: 160.0,
+                  nextScreen: const VehicleList(),
+                  splashTransition: SplashTransition.fadeTransition,
+                  pageTransitionType: PageTransitionType.leftToRight,
+                  backgroundColor: Colors.purple.shade700,
+                ));
+          }),
+    );
   }
 }

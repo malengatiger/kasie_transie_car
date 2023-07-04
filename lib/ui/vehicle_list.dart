@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/dashboard.dart';
+import 'package:kasie_transicar/ui/phone_auth_signin.dart';
 import 'package:kasie_transie_library/bloc/app_auth.dart';
+import 'package:kasie_transie_library/bloc/data_api_dog.dart';
 import 'package:kasie_transie_library/bloc/list_api_dog.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
 import 'package:kasie_transie_library/isolates/country_cities_isolate.dart';
@@ -14,9 +16,7 @@ import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:badges/badges.dart' as bd;
 
 class VehicleList extends StatefulWidget {
-  const VehicleList({Key? key, required this.association}) : super(key: key);
-
-  final lm.Association association;
+  const VehicleList({Key? key}) : super(key: key);
 
   @override
   VehicleListState createState() => VehicleListState();
@@ -29,14 +29,15 @@ class VehicleListState extends State<VehicleList>
 
   bool busy = false;
   var cars = <lm.Vehicle>[];
+  var carsToDisplay = <lm.Vehicle>[];
   late StreamSubscription<bool> compSubscription;
-
+  lm.Association? ass;
   @override
   void initState() {
     _controller = AnimationController(vsync: this);
     super.initState();
     _listen();
-    _getVehicles();
+    _checkAuth();
   }
 
   void _listen() async {
@@ -54,14 +55,33 @@ class VehicleListState extends State<VehicleList>
     });
   }
 
+  void _checkAuth() async {
+    pp('$mm ... check auth');
+    final v = await prefs.getCar();
+    ass = await prefs.getAssociation();
+    if (v == null && ass == null) {
+      _navigateToAuth();
+      return;
+    }
+    _getVehicles();
+  }
+
   void _getVehicles() async {
+    pp('$mm ........... _getVehicles for ${ass!.associationName}');
+    myPrettyJsonPrint(ass!.toJson());
+
     setState(() {
       busy = true;
     });
     try {
-      cars = await listApiDog.getAssociationVehicles(
-          widget.association.associationId!, false);
+      cars =
+          await listApiDog.getAssociationVehicles(ass!.associationId!, false);
       cars.sort((a, b) => a.vehicleReg!.compareTo(b.vehicleReg!));
+
+      for (var element in cars) {
+        _carPlates.add(element.vehicleReg!);
+        carsToDisplay.add(element);
+      }
       pp('$mm ..... cars found: ${cars.length}');
     } catch (e) {
       pp(e);
@@ -70,6 +90,19 @@ class VehicleListState extends State<VehicleList>
     setState(() {
       busy = false;
     });
+  }
+
+  Future<void> _navigateToAuth() async {
+    await navigateWithScale(
+        CellPhoneAuthSignin(dataApiDog: dataApiDog), context);
+    pp('$mm ........... _navigateToAuth back to Mama!');
+    ass = await prefs.getAssociation();
+    if (ass == null) {
+      pp('$mm how the fuck is the ass null??? ${E.redDot}${E.redDot}${E.redDot}');
+      throw Exception('no ass!');
+    }
+    pp('$mm ........... association found: ${ass!.associationName}');
+    _getVehicles();
   }
 
   //
@@ -133,6 +166,52 @@ class VehicleListState extends State<VehicleList>
     }
   }
 
+  final _carPlates = <String>[];
+
+  void _runFilter(String text) {
+    pp('$mm .... _runFilter: text: $text ......');
+    if (text.isEmpty) {
+      pp('$mm .... text is empty ......');
+      carsToDisplay.clear();
+      for (var project in cars) {
+        carsToDisplay.add(project);
+      }
+      setState(() {});
+      return;
+    }
+    carsToDisplay.clear();
+
+    pp('$mm ...  filtering cars that contain: $text from ${_carPlates.length} car plates');
+    for (var carPlate in _carPlates) {
+      if (carPlate.toLowerCase().contains(text.toLowerCase())) {
+        var car = _findVehicle(carPlate);
+        if (car != null) {
+          carsToDisplay.add(car);
+        }
+      }
+    }
+    pp('$mm .... set state with projectsToDisplay: ${carsToDisplay.length} ......');
+    setState(() {});
+  }
+
+  lm.Vehicle? _findVehicle(String carPlate) {
+    for (var car in cars) {
+      // pp('$mm ... does ${car.vehicleReg!.toLowerCase()} contain the ${E.appleRed} carPlate: ${carPlate.toLowerCase()} ??');
+      if (car.vehicleReg!.toLowerCase() == carPlate.toLowerCase()) {
+        pp('$mm ..................................${E.leaf} ${E.leaf} found a car! $carPlate');
+        return car;
+      }
+    }
+    pp('$mm ..................................${E.redDot} ${E.redDot} DID NOT FIND $carPlate');
+
+    return null;
+  }
+  void _close(lm.Vehicle country) {
+
+    pp('$mm Vehicle selected: ${country.vehicleReg}, popping out');
+  }
+
+  String? search, searchVehicles;
   @override
   void dispose() {
     _controller.dispose();
@@ -140,6 +219,7 @@ class VehicleListState extends State<VehicleList>
     super.dispose();
   }
 
+  final TextEditingController _textEditingController = TextEditingController();
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -149,6 +229,61 @@ class VehicleListState extends State<VehicleList>
                 'Association Vehicles',
                 style: myTextStyleLarge(context),
               ),
+              actions: [
+                IconButton(onPressed: (){
+                  _getVehicles();
+                }, icon: const Icon(Icons.refresh))
+              ],
+              bottom: PreferredSize(preferredSize: const Size.fromHeight(100), child: Column(
+                children: [
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 300,
+                        child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 20.0, horizontal: 12.0),
+                            child: TextField(
+                              controller: _textEditingController,
+                              onChanged: (text) {
+                                pp(' ........... changing to: $text');
+                                _runFilter(text);
+                              },
+                              decoration: InputDecoration(
+                                  label: Text(
+                                    search == null ? 'Search' : search!,
+                                    style: myTextStyleSmall(
+                                      context,
+                                    ),
+                                  ),
+                                  icon: Icon(
+                                    Icons.search,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                  border: const OutlineInputBorder(),
+                                  hintText: searchVehicles == null
+                                      ? 'Search Vehicles'
+                                      : searchVehicles!,
+                                  hintStyle: myTextStyleSmallWithColor(
+                                      context, Theme.of(context).primaryColor)),
+                            )),
+                      ),
+                      const SizedBox(
+                        width: 12,
+                      ),
+                      bd.Badge(
+                        position: bd.BadgePosition.topEnd(),
+                        badgeContent: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text('${carsToDisplay.length}',
+                              style: myTextStyleSmallWithColor(
+                                  context, Colors.white)),
+                        ),
+                      )
+                    ],
+                  )
+                ],
+              )),
             ),
             body: Stack(
               children: [
@@ -189,9 +324,9 @@ class VehicleListState extends State<VehicleList>
                                         badgeColor: Colors.green[900]!,
                                         padding: const EdgeInsets.all(12)),
                                     child: ListView.builder(
-                                        itemCount: cars.length,
+                                        itemCount: carsToDisplay.length,
                                         itemBuilder: (ctx, index) {
-                                          final ass = cars.elementAt(index);
+                                          final ass = carsToDisplay.elementAt(index);
                                           return GestureDetector(
                                             onTap: () {
                                               _onCarSelected(ass);
@@ -229,8 +364,8 @@ class VehicleListState extends State<VehicleList>
                     ? Positioned(
                         left: 24,
                         right: 24,
-                        bottom: 120,
-                        top: 120,
+                        bottom: 60,
+                        top: 60,
                         child: Card(
                           shape: getRoundedBorder(radius: 16),
                           elevation: 16,

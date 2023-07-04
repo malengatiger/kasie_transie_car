@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/car_qrcode.dart';
+import 'package:kasie_transicar/ui/phone_auth_signin.dart';
+import 'package:kasie_transicar/ui/vehicle_list.dart';
+import 'package:kasie_transie_library/bloc/data_api_dog.dart';
 import 'package:kasie_transie_library/bloc/the_great_geofencer.dart';
 import 'package:kasie_transie_library/data/color_and_locale.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
@@ -37,7 +40,12 @@ class DashboardState extends State<Dashboard>
   var dispatches = 0;
   late StreamSubscription<String> routeChangesSub;
 
-  String? arrivalsText, departuresText, ownerText, heartbeatsText, dispatchText, dashboardText;
+  String? arrivalsText,
+      departuresText,
+      ownerText,
+      heartbeatsText,
+      dispatchText,
+      dashboardText;
 
   String? routeId;
   late ColorAndLocale colorAndLocale;
@@ -52,15 +60,18 @@ class DashboardState extends State<Dashboard>
 
   Future _setTexts() async {
     colorAndLocale = await prefs.getColorAndLocale();
-    arrivalsText = await translator.translate('arrivals', colorAndLocale.locale);
-    departuresText = await translator.translate('departures', colorAndLocale.locale);
-    heartbeatsText = await translator.translate('heartbeats', colorAndLocale.locale);
-    dispatchText = await translator.translate('dispatches', colorAndLocale.locale);
-    dashboardText = await translator.translate('dashboard', colorAndLocale.locale);
+    arrivalsText =
+        await translator.translate('arrivals', colorAndLocale.locale);
+    departuresText =
+        await translator.translate('departures', colorAndLocale.locale);
+    heartbeatsText =
+        await translator.translate('heartbeats', colorAndLocale.locale);
+    dispatchText =
+        await translator.translate('dispatches', colorAndLocale.locale);
+    dashboardText =
+        await translator.translate('dashboard', colorAndLocale.locale);
     ownerText = await translator.translate('owner', colorAndLocale.locale);
-    setState(() {
-
-    });
+    setState(() {});
   }
 
   Future _initialize() async {
@@ -73,11 +84,12 @@ class DashboardState extends State<Dashboard>
     routeChangesSub = fcmBloc.routeChangesStream.listen((event) {
       pp('$mm routeChangesStream delivered a routeId: $event');
       routeId = event;
-      setState(() {
-
-      });
+      setState(() {});
       if (mounted) {
-        showSnackBar(message: "A Route update has been issued. The download will happen automatically.", context: context);
+        showSnackBar(
+            message:
+                "A Route update has been issued. The download will happen automatically.",
+            context: context);
       }
     });
 // Periodic task registration
@@ -89,6 +101,7 @@ class DashboardState extends State<Dashboard>
       frequency: const Duration(minutes: 15),
     );
   }
+
   Future _getCounts() async {
     pp('$mm ... get counts ...');
   }
@@ -98,11 +111,14 @@ class DashboardState extends State<Dashboard>
     if (car != null) {
       pp('$mm ........... resident car:');
       myPrettyJsonPrint(car!.toJson());
-     await  _getCounts();
+      await _getCounts();
       _initialize();
+    } else {
+
     }
     setState(() {});
   }
+
 
   void _navigateToMap() {
     navigateWithScale(const AssociationRouteMaps(), context);
@@ -110,16 +126,19 @@ class DashboardState extends State<Dashboard>
 
   void _navigateToQRCode() {
     if (car != null) {
-      navigateWithScale( CarQrcode(vehicle: car!), context);
+      navigateWithScale(CarQrcode(vehicle: car!), context);
     }
   }
-  void _navigateToColor() async  {
-    final colorAndLocale = await navigateWithScale(const LanguageAndColorChooser(), context);
+
+  void _navigateToColor() async {
+    final colorAndLocale =
+        await navigateWithScale(const LanguageAndColorChooser(), context);
     if (colorAndLocale == null) {
       return;
     }
     _setTexts();
   }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -129,32 +148,56 @@ class DashboardState extends State<Dashboard>
 
   void getDirections() async {
     final loc = await locationBloc.getLocation();
-    final res = await directionsDog.getDirections(originLat: loc.latitude, originLng: loc.longitude,
-        destinationLat: 26.107567, destinationLng: 28.056702);
+    final res = await directionsDog.getDirections(
+        originLat: loc.latitude,
+        originLng: loc.longitude,
+        destinationLat: 26.107567,
+        destinationLng: 28.056702);
     pp('$mm directions should be here by now ... ${res.toString()}');
   }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
         child: Scaffold(
       appBar: AppBar(
-        title: Text(dashboardText == null?
-          'Dashboard' : dashboardText!,
+        title: Text(
+          dashboardText == null ? 'Dashboard' : dashboardText!,
           style: myTextStyleLarge(context),
         ),
         actions: [
-          IconButton(onPressed: (){
-            _navigateToColor();
-          }, icon:  Icon(Icons.color_lens, color: Theme.of(context).primaryColor,)),
-          IconButton(onPressed: (){
-            _navigateToMap();
-          }, icon:  Icon(Icons.map, color: Theme.of(context).primaryColor,)),
-          IconButton(onPressed: (){
-            _navigateToQRCode();
-          }, icon:  Icon(Icons.qr_code, color: Theme.of(context).primaryColor,)),
-          IconButton(onPressed: (){
-              getDirections();
-          }, icon:  Icon(Icons.directions, color: Theme.of(context).primaryColor,))
+          IconButton(
+              onPressed: () {
+                _navigateToColor();
+              },
+              icon: Icon(
+                Icons.color_lens,
+                color: Theme.of(context).primaryColor,
+              )),
+          IconButton(
+              onPressed: () {
+                _navigateToMap();
+              },
+              icon: Icon(
+                Icons.map,
+                color: Theme.of(context).primaryColor,
+              )),
+          IconButton(
+              onPressed: () {
+                _navigateToQRCode();
+              },
+              icon: Icon(
+                Icons.qr_code,
+                color: Theme.of(context).primaryColor,
+              )),
+          IconButton(
+              onPressed: () {
+                getDirections();
+              },
+              icon: Icon(
+                Icons.directions,
+                color: Theme.of(context).primaryColor,
+              ))
         ],
       ),
       body: car == null
@@ -180,12 +223,11 @@ class DashboardState extends State<Dashboard>
                     '${car!.make} ${car!.model} - ${car!.year}',
                     style: myTextStyleMedium(context),
                   ),
-
                   const SizedBox(
                     height: 48,
                   ),
-                  Text(ownerText == null?
-                    'Owner' : ownerText!,
+                  Text(
+                    ownerText == null ? 'Owner' : ownerText!,
                     style: myTextStyleSmall(context),
                   ),
                   const SizedBox(
@@ -200,19 +242,37 @@ class DashboardState extends State<Dashboard>
                   ),
                   Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: GridView(
-                    gridDelegate:
+                    padding: const EdgeInsets.all(8.0),
+                    child: GridView(
+                      gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2, mainAxisSpacing: 2, crossAxisSpacing: 2),
-                    children: [
-                        NumberWidget(title: arrivalsText == null? 'Arrivals': arrivalsText!, number: arrivals),
-                        NumberWidget(title: departuresText == null? 'Departures' : departuresText!, number: departures),
-                        NumberWidget(title: heartbeatsText == null? 'Heartbeats': heartbeatsText!, number: heartbeats),
-                        NumberWidget(title: dispatchText == null? 'Dispatches': dispatchText!, number: dispatches),
-                    ],
-                  ),
-                      )),
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 2,
+                              crossAxisSpacing: 2),
+                      children: [
+                        NumberWidget(
+                            title: arrivalsText == null
+                                ? 'Arrivals'
+                                : arrivalsText!,
+                            number: arrivals),
+                        NumberWidget(
+                            title: departuresText == null
+                                ? 'Departures'
+                                : departuresText!,
+                            number: departures),
+                        NumberWidget(
+                            title: heartbeatsText == null
+                                ? 'Heartbeats'
+                                : heartbeatsText!,
+                            number: heartbeats),
+                        NumberWidget(
+                            title: dispatchText == null
+                                ? 'Dispatches'
+                                : dispatchText!,
+                            number: dispatches),
+                      ],
+                    ),
+                  )),
                 ],
               ),
             ),
@@ -241,7 +301,8 @@ class NumberWidget extends StatelessWidget {
             ),
             Text(
               '$number',
-              style: myNumberStyleLargerWithColor(Theme.of(context).primaryColor, 32, context),
+              style: myNumberStyleLargerWithColor(
+                  Theme.of(context).primaryColor, 32, context),
             ),
             Text(
               title,

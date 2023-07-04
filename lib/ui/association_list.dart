@@ -73,7 +73,7 @@ class AssociationListState extends State<AssociationList>
                         final ass = assocList.elementAt(index);
                         return GestureDetector(
                           onTap: (){
-                            navigateWithScale(VehicleList(association: ass), context);
+                            navigateWithScale(const VehicleList(), context);
                           },
                           child: Card(
                             shape: getRoundedBorder(radius: 16),
