@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/car_qrcode.dart';
 import 'package:kasie_transie_library/bloc/the_great_geofencer.dart';
+import 'package:kasie_transie_library/data/color_and_locale.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
+import 'package:kasie_transie_library/l10n/translation_handler.dart';
 import 'package:kasie_transie_library/maps/association_route_maps.dart';
 import 'package:kasie_transie_library/maps/directions_dog.dart';
 import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
@@ -35,13 +37,30 @@ class DashboardState extends State<Dashboard>
   var dispatches = 0;
   late StreamSubscription<String> routeChangesSub;
 
+  String? arrivalsText, departuresText, ownerText, heartbeatsText, dispatchText, dashboardText;
+
   String? routeId;
+  late ColorAndLocale colorAndLocale;
 
   @override
   void initState() {
     _controller = AnimationController(vsync: this);
     super.initState();
+    _setTexts();
     _getCar();
+  }
+
+  Future _setTexts() async {
+    colorAndLocale = await prefs.getColorAndLocale();
+    arrivalsText = await translator.translate('arrivals', colorAndLocale.locale);
+    departuresText = await translator.translate('departures', colorAndLocale.locale);
+    heartbeatsText = await translator.translate('heartbeats', colorAndLocale.locale);
+    dispatchText = await translator.translate('dispatches', colorAndLocale.locale);
+    dashboardText = await translator.translate('dashboard', colorAndLocale.locale);
+    ownerText = await translator.translate('owner', colorAndLocale.locale);
+    setState(() {
+
+    });
   }
 
   Future _initialize() async {
@@ -61,8 +80,6 @@ class DashboardState extends State<Dashboard>
         showSnackBar(message: "A Route update has been issued. The download will happen automatically.", context: context);
       }
     });
-
-
 // Periodic task registration
     Workmanager().registerPeriodicTask(
       "periodic-task-identifier",
@@ -96,8 +113,12 @@ class DashboardState extends State<Dashboard>
       navigateWithScale( CarQrcode(vehicle: car!), context);
     }
   }
-  void _navigateToColor() {
-    navigateWithScale(const LanguageAndColorChooser(), context);
+  void _navigateToColor() async  {
+    final colorAndLocale = await navigateWithScale(const LanguageAndColorChooser(), context);
+    if (colorAndLocale == null) {
+      return;
+    }
+    _setTexts();
   }
   @override
   void dispose() {
@@ -117,8 +138,8 @@ class DashboardState extends State<Dashboard>
     return SafeArea(
         child: Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Dashboard',
+        title: Text(dashboardText == null?
+          'Dashboard' : dashboardText!,
           style: myTextStyleLarge(context),
         ),
         actions: [
@@ -146,7 +167,7 @@ class DashboardState extends State<Dashboard>
               child: Column(
                 children: [
                   const SizedBox(
-                    height: 24,
+                    height: 64,
                   ),
                   Text(
                     '${car!.vehicleReg}',
@@ -161,10 +182,10 @@ class DashboardState extends State<Dashboard>
                   ),
 
                   const SizedBox(
-                    height: 24,
+                    height: 48,
                   ),
-                  Text(
-                    'Owner',
+                  Text(ownerText == null?
+                    'Owner' : ownerText!,
                     style: myTextStyleSmall(context),
                   ),
                   const SizedBox(
@@ -175,7 +196,7 @@ class DashboardState extends State<Dashboard>
                     style: myTextStyleMediumLargeWithSize(context, 20),
                   ),
                   const SizedBox(
-                    height: 24,
+                    height: 32,
                   ),
                   Expanded(
                       child: Padding(
@@ -185,10 +206,10 @@ class DashboardState extends State<Dashboard>
                           const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2, mainAxisSpacing: 2, crossAxisSpacing: 2),
                     children: [
-                        NumberWidget(title: 'Arrivals', number: arrivals),
-                        NumberWidget(title: 'Departures', number: departures),
-                        NumberWidget(title: 'Heartbeats', number: heartbeats),
-                        NumberWidget(title: 'Dispatches', number: dispatches),
+                        NumberWidget(title: arrivalsText == null? 'Arrivals': arrivalsText!, number: arrivals),
+                        NumberWidget(title: departuresText == null? 'Departures' : departuresText!, number: departures),
+                        NumberWidget(title: heartbeatsText == null? 'Heartbeats': heartbeatsText!, number: heartbeats),
+                        NumberWidget(title: dispatchText == null? 'Dispatches': dispatchText!, number: dispatches),
                     ],
                   ),
                       )),
