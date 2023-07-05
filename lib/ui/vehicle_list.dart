@@ -62,6 +62,8 @@ class VehicleListState extends State<VehicleList>
     if (v == null && ass == null) {
       _navigateToAuth();
       return;
+    } else if (v != null) {
+      _navigateToDashboard();
     }
     _getVehicles();
   }

@@ -114,7 +114,7 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
 
     if (user != null) {
       pp('$mm KasieTransie user found on database:  🍎 ${user!.toJson()} 🍎');
-      await prefs.saveUser(user!);
+      //await prefs.saveUser(user!);
       final ass = await listApiDog.getAssociationById(user!.associationId!);
       await prefs.saveAssociation(ass);
       final cars =

@@ -9,6 +9,7 @@ import 'package:kasie_transicar/widgets/splash_page.dart';
 import 'package:kasie_transie_library/bloc/theme_bloc.dart';
 import 'package:kasie_transie_library/data/schemas.dart';
 import 'package:kasie_transie_library/messaging/heartbeat.dart';
+import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:page_transition/page_transition.dart';
@@ -19,7 +20,7 @@ import 'firebase_options.dart';
 late fb.FirebaseApp firebaseApp;
 fb.User? fbAuthedUser;
 var themeIndex = 0;
-Locale? locale;
+// String? locale;
 const mx = '🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵 KasieTransie Car : main 🔵🔵';
 Vehicle? vehicle;
 
@@ -32,18 +33,15 @@ Future<void> main() async {
   fbAuthedUser = fb.FirebaseAuth.instance.currentUser;
   vehicle = await prefs.getCar();
   if (vehicle == null) {
-    pp('$mx  this car has not been initialized yet');
+    pp('$mx  this car has NOT been initialized yet ${E.redDot}');
   } else {
-    pp('$mx  this car has been initialized! : ${vehicle!.vehicleReg}');
+    pp('$mx  this car has been initialized! ${E.leaf}: ${vehicle!.vehicleReg}');
   }
   Workmanager().initialize(
       callbackDispatcher, // The top level function, aka callbackDispatcher
       isInDebugMode:
           true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
       );
-  // deviceBackgroundLocation.initialize();
-  //
-  // GeolocatorPlatform.instance.
 
   runApp(const KasieTransieCarApp());
 }
@@ -67,8 +65,6 @@ class KasieTransieCarApp extends StatelessWidget {
                   'build: theme index has changed to ${snapshot.data!.themeIndex}'
                   '  and locale is ${snapshot.data!.locale.toString()}');
               themeIndex = snapshot.data!.themeIndex;
-              locale = snapshot.data!.locale;
-              pp(' 🔵 🔵 🔵 GeoApp: build: locale object received from stream: $locale');
             }
 
             return MaterialApp(

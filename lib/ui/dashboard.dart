@@ -2,19 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/car_qrcode.dart';
-import 'package:kasie_transicar/ui/phone_auth_signin.dart';
-import 'package:kasie_transicar/ui/vehicle_list.dart';
-import 'package:kasie_transie_library/bloc/data_api_dog.dart';
+import 'package:kasie_transie_library/bloc/dispatch_helper.dart';
+import 'package:kasie_transie_library/bloc/list_api_dog.dart';
 import 'package:kasie_transie_library/bloc/the_great_geofencer.dart';
 import 'package:kasie_transie_library/data/color_and_locale.dart';
+import 'package:kasie_transie_library/data/counter_bag.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
 import 'package:kasie_transie_library/l10n/translation_handler.dart';
 import 'package:kasie_transie_library/maps/association_route_maps.dart';
-import 'package:kasie_transie_library/maps/directions_dog.dart';
 import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/messaging/heartbeat.dart';
 import 'package:kasie_transie_library/utils/device_background_location.dart';
-import 'package:kasie_transie_library/utils/device_location_bloc.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/navigator_utils.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
@@ -39,6 +37,7 @@ class DashboardState extends State<Dashboard>
   var heartbeats = 0;
   var dispatches = 0;
   late StreamSubscription<String> routeChangesSub;
+  late StreamSubscription<lm.DispatchRecord> dispatchSub;
 
   String? arrivalsText,
       departuresText,
@@ -54,8 +53,21 @@ class DashboardState extends State<Dashboard>
   void initState() {
     _controller = AnimationController(vsync: this);
     super.initState();
+    _listen();
     _setTexts();
     _getCar();
+  }
+
+  void _listen() async {
+    dispatchSub = dispatchHelper.dispatchStream.listen((event) {
+      pp('$mm ... delivered a dispatch ${event.vehicleReg}');
+      if (car!.vehicleId == event.vehicleId) {
+        dispatches++;
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    });
   }
 
   Future _setTexts() async {
@@ -102,8 +114,30 @@ class DashboardState extends State<Dashboard>
     );
   }
 
+  List<CounterBag> counts = [];
+
   Future _getCounts() async {
     pp('$mm ... get counts ...');
+    counts = await listApiDog.getVehicleCounts(car!.vehicleId!);
+    if (counts.isNotEmpty) {
+      for (var value in counts) {
+        switch (value.description) {
+          case 'VehicleArrival':
+            arrivals = value.count!;
+            break;
+          case 'VehicleDeparture':
+            departures = value.count!;
+            break;
+          case 'DispatchRecord':
+            dispatches = value.count!;
+            break;
+          case 'VehicleHeartbeat':
+            heartbeats = value.count!;
+            break;
+        }
+      }
+    }
+    setState(() {});
   }
 
   void _getCar() async {
@@ -113,12 +147,9 @@ class DashboardState extends State<Dashboard>
       myPrettyJsonPrint(car!.toJson());
       await _getCounts();
       _initialize();
-    } else {
-
-    }
+    } else {}
     setState(() {});
   }
-
 
   void _navigateToMap() {
     navigateWithScale(const AssociationRouteMaps(), context);
@@ -147,13 +178,7 @@ class DashboardState extends State<Dashboard>
   }
 
   void getDirections() async {
-    final loc = await locationBloc.getLocation();
-    final res = await directionsDog.getDirections(
-        originLat: loc.latitude,
-        originLng: loc.longitude,
-        destinationLat: 26.107567,
-        destinationLng: 28.056702);
-    pp('$mm directions should be here by now ... ${res.toString()}');
+    pp('$mm directions should be here by now ... ');
   }
 
   @override
@@ -212,9 +237,14 @@ class DashboardState extends State<Dashboard>
                   const SizedBox(
                     height: 64,
                   ),
-                  Text(
-                    '${car!.vehicleReg}',
-                    style: myTextStyleLargePrimaryColor(context),
+                  GestureDetector(
+                    onTap: () {
+                      _getCounts();
+                    },
+                    child: Text(
+                      '${car!.vehicleReg}',
+                      style: myTextStyleLargePrimaryColor(context),
+                    ),
                   ),
                   const SizedBox(
                     height: 8,
@@ -243,34 +273,39 @@ class DashboardState extends State<Dashboard>
                   Expanded(
                       child: Padding(
                     padding: const EdgeInsets.all(8.0),
-                    child: GridView(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 2,
-                              crossAxisSpacing: 2),
-                      children: [
-                        NumberWidget(
-                            title: arrivalsText == null
-                                ? 'Arrivals'
-                                : arrivalsText!,
-                            number: arrivals),
-                        NumberWidget(
-                            title: departuresText == null
-                                ? 'Departures'
-                                : departuresText!,
-                            number: departures),
-                        NumberWidget(
-                            title: heartbeatsText == null
-                                ? 'Heartbeats'
-                                : heartbeatsText!,
-                            number: heartbeats),
-                        NumberWidget(
-                            title: dispatchText == null
-                                ? 'Dispatches'
-                                : dispatchText!,
-                            number: dispatches),
-                      ],
+                    child: GestureDetector(
+                      onTap: () {
+                        _getCounts();
+                      },
+                      child: GridView(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 2,
+                                crossAxisSpacing: 2),
+                        children: [
+                          NumberWidget(
+                              title: arrivalsText == null
+                                  ? 'Arrivals'
+                                  : arrivalsText!,
+                              number: arrivals),
+                          NumberWidget(
+                              title: departuresText == null
+                                  ? 'Departures'
+                                  : departuresText!,
+                              number: departures),
+                          NumberWidget(
+                              title: heartbeatsText == null
+                                  ? 'Heartbeats'
+                                  : heartbeatsText!,
+                              number: heartbeats),
+                          NumberWidget(
+                              title: dispatchText == null
+                                  ? 'Dispatches'
+                                  : dispatchText!,
+                              number: dispatches),
+                        ],
+                      ),
                     ),
                   )),
                 ],
@@ -286,6 +321,7 @@ class NumberWidget extends StatelessWidget {
 
   final String title;
   final int number;
+
   @override
   Widget build(BuildContext context) {
     return Card(
