@@ -244,7 +244,7 @@ class VehicleListState extends State<VehicleList>
                         width: 300,
                         child: Padding(
                             padding: const EdgeInsets.symmetric(
-                                vertical: 20.0, horizontal: 12.0),
+                                vertical: 8.0, horizontal: 8.0),
                             child: TextField(
                               controller: _textEditingController,
                               onChanged: (text) {
@@ -271,7 +271,7 @@ class VehicleListState extends State<VehicleList>
                             )),
                       ),
                       const SizedBox(
-                        width: 12,
+                        width: 4,
                       ),
                       bd.Badge(
                         position: bd.BadgePosition.topEnd(),
