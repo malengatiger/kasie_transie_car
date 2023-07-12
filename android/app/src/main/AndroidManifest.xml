@@ -11,7 +11,9 @@
         android:icon="@mipmap/ic_launcher">
         <meta-data android:name="com.google.android.geo.API_KEY"
                    android:value="AIzaSyBt0w2-JDGB0u_Ygvrmd8PdLV8Bd2hzB-c"/>
-
+        <meta-data
+                android:name="com.google.firebase.messaging.default_notification_channel_id"
+                android:value="car_channel" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

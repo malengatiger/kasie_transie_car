@@ -37,7 +37,7 @@ dependencies:
   kasie_transie_library:
     path: ../kasie_transie_library
   cupertino_icons: ^1.0.5
-  flutter_local_notifications: ^14.1.1
+  flutter_local_notifications: ^15.1.0+1
   firebase_auth: ^4.6.3
   firebase_messaging: ^14.6.3
   firebase_core: ^2.14.0

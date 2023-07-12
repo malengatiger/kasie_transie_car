@@ -89,7 +89,7 @@ class DashboardState extends State<Dashboard>
   Future _initialize() async {
     pp('\n\n$mm initialize ...');
     await theGreatGeofencer.buildGeofences();
-    await fcmBloc.subscribeToTopics();
+    await fcmBloc.subscribeToTopics('CarApp');
     heartbeat.startHeartbeat();
     deviceBackgroundLocation.initialize();
 

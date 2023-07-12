@@ -9,6 +9,7 @@ import 'package:kasie_transie_library/l10n/translation_handler.dart';
 import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
+import 'package:kasie_transie_library/widgets/timer_widget.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lib;
 
@@ -42,7 +43,7 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
   String? currentText;
   bool verificationFailed = false;
   bool verificationCompleted = false;
-  bool busy = false;
+  bool busy = false, loading = false;
   bool initializing = false;
   lib.User? user;
   SignInStrings? signInStrings;
@@ -90,14 +91,16 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
       user = await prefs.getUser();
       setState(() {
         busy = false;
+        loading = true;
       });
       if (result == 0 && mounted) {
         pp('\n$mm popping ......................');
         Navigator.of(context).pop(true);
-        pp('\n$mm routesIsolate.getRoutes ......................');
-        routesIsolate.getRoutes(user!.associationId!);
-
       }
+      setState(() {
+        busy = false;
+        loading = false;
+      });
     } catch (e) {
       _handleError(e);
     }
@@ -115,24 +118,34 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
     if (user != null) {
       pp('$mm KasieTransie user found on database:  🍎 ${user!.toJson()} 🍎');
       //await prefs.saveUser(user!);
-      final ass = await listApiDog.getAssociationById(user!.associationId!);
-      await prefs.saveAssociation(ass);
-      final cars =
-          await listApiDog.getAssociationVehicles(user!.associationId!, true);
-      pp('$mm KasieTransie cars found on database:  🍎 ${cars.length} 🍎');
-      final countries = await listApiDog.getCountries();
-      pp('$mm KasieTransie countries found on database:  🍎 ${countries.length} 🍎');
-      await routesIsolate.getRoutes(user!.associationId!);
+      try {
+        setState(() {
+          loading = true;
+        });
+        final ass = await listApiDog.getAssociationById(user!.associationId!);
+        await prefs.saveAssociation(ass);
+        final cars =
+            await listApiDog.getAssociationVehicles(user!.associationId!, true);
+        pp('$mm KasieTransie cars found on database:  🍎 ${cars.length} 🍎');
+        final countries = await listApiDog.getCountries();
+        pp('$mm KasieTransie countries found on database:  🍎 ${countries.length} 🍎');
+        await routesIsolate.getRoutes(user!.associationId!);
 
-      lib.Country? myCountry;
-      for (var country in countries) {
-        if (country.countryId == ass.countryId!) {
-          myCountry = country;
-          await prefs.saveCountry(myCountry);
-          break;
+        lib.Country? myCountry;
+        for (var country in countries) {
+          if (country.countryId == ass.countryId!) {
+            myCountry = country;
+            await prefs.saveCountry(myCountry);
+            break;
+          }
         }
+        pp('$mm KasieTransie; my country the beloved:  🍎 ${myCountry!.name!} 🍎');
+        setState(() {
+          loading = false;
+        });
+      } catch (e) {
+        pp(e);
       }
-      pp('$mm KasieTransie; my country the beloved:  🍎 ${myCountry!.name!} 🍎');
     } else {
       if (mounted) {
         showSnackBar(
@@ -263,7 +276,7 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
       appBar: AppBar(
         title: const Text('Phone SignIn'),
         bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(100), child: Column()),
+            preferredSize: Size.fromHeight(40), child: Column()),
       ),
       body: Stack(
         children: [
@@ -277,26 +290,6 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
-                      busy
-                          ? const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Padding(
-                                  padding: EdgeInsets.all(12.0),
-                                  child: SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 4,
-                                      backgroundColor: Colors.pink,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : const SizedBox(
-                              height: 12,
-                            ),
                       const SizedBox(
                         height: 24,
                       ),
@@ -357,7 +350,8 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
                                 ),
                                 ElevatedButton(
                                     onPressed: () {
-                                      if (_formKey.currentState!.validate()) {
+                                      if (_formKey.currentState!
+                                          .validate()) {
                                         _verifyPhoneNumber();
                                       }
                                     },
@@ -379,7 +373,8 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
                                               signInStrings == null
                                                   ? 'Enter SMS pin code sent'
                                                   : signInStrings!.enterSMS,
-                                              style: myTextStyleSmall(context),
+                                              style:
+                                                  myTextStyleSmall(context),
                                             ),
                                             const SizedBox(
                                               height: 16,
@@ -391,13 +386,16 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
                                                 length: 6,
                                                 obscureText: false,
                                                 textStyle:
-                                                    myNumberStyleLarge(context),
+                                                    myNumberStyleLarge(
+                                                        context),
                                                 animationType:
                                                     AnimationType.fade,
                                                 pinTheme: PinTheme(
-                                                  shape: PinCodeFieldShape.box,
+                                                  shape:
+                                                      PinCodeFieldShape.box,
                                                   borderRadius:
-                                                      BorderRadius.circular(5),
+                                                      BorderRadius.circular(
+                                                          5),
                                                   fieldHeight: 50,
                                                   fieldWidth: 40,
                                                   activeFillColor:
@@ -449,18 +447,21 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
                                                     ),
                                                   )
                                                 : ElevatedButton(
-                                                    onPressed: _processSignIn,
+                                                    onPressed:
+                                                        _processSignIn,
                                                     style: ButtonStyle(
                                                       elevation:
                                                           MaterialStateProperty
-                                                              .all<double>(8.0),
+                                                              .all<double>(
+                                                                  8.0),
                                                     ),
                                                     child: Padding(
                                                       padding:
-                                                          const EdgeInsets.all(
-                                                              4.0),
+                                                          const EdgeInsets
+                                                              .all(4.0),
                                                       child: Text(
-                                                          signInStrings == null
+                                                          signInStrings ==
+                                                                  null
                                                               ? 'Send Code'
                                                               : signInStrings!
                                                                   .sendCode),
@@ -478,6 +479,19 @@ class CellPhoneAuthSigninState extends State<CellPhoneAuthSignin>
               ),
             ),
           ),
+          loading
+              ? const Positioned(
+            top: 80,
+            bottom: 80,
+            left: 16,
+            right: 16,
+            child: TimerWidget(
+              title: 'Loading Data',
+              subTitle:
+              'Preparing the initial data needed by the app',
+            ),
+          )
+              : const SizedBox(),
         ],
       ),
     ));
