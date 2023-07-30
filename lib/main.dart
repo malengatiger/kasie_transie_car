@@ -2,13 +2,11 @@ import 'package:animated_splash_screen/animated_splash_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:firebase_core/firebase_core.dart' as fb;
 import 'package:flutter/material.dart';
-import 'package:kasie_transicar/ui/association_list.dart';
 import 'package:kasie_transicar/ui/dashboard.dart';
-import 'package:kasie_transicar/ui/vehicle_list.dart';
 import 'package:kasie_transicar/widgets/splash_page.dart';
 import 'package:kasie_transie_library/bloc/theme_bloc.dart';
 import 'package:kasie_transie_library/data/schemas.dart';
-import 'package:kasie_transie_library/messaging/heartbeat.dart';
+import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
@@ -43,6 +41,7 @@ Future<void> main() async {
           true // If enabled it will post a notification whenever the task is running. Handy for debugging tasks
       );
 
+  // fcmBloc.initialize();
   runApp(const KasieTransieCarApp());
 }
 
@@ -78,7 +77,7 @@ class KasieTransieCarApp extends StatelessWidget {
                   animationDuration: const Duration(milliseconds: 2000),
                   curve: Curves.easeInCirc,
                   splashIconSize: 160.0,
-                  nextScreen: const VehicleList(),
+                  nextScreen: const Dashboard(),
                   splashTransition: SplashTransition.fadeTransition,
                   pageTransitionType: PageTransitionType.leftToRight,
                   backgroundColor: Colors.purple.shade700,
@@ -86,4 +85,7 @@ class KasieTransieCarApp extends StatelessWidget {
           }),
     );
   }
+}
+
+callbackDispatcher() {
 }

@@ -2,20 +2,24 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/car_qrcode.dart';
+import 'package:kasie_transicar/ui/vehicle_list.dart';
 import 'package:kasie_transie_library/bloc/dispatch_helper.dart';
 import 'package:kasie_transie_library/bloc/list_api_dog.dart';
 import 'package:kasie_transie_library/bloc/the_great_geofencer.dart';
 import 'package:kasie_transie_library/data/color_and_locale.dart';
 import 'package:kasie_transie_library/data/counter_bag.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
+import 'package:kasie_transie_library/data/schemas.dart' as lib;
 import 'package:kasie_transie_library/l10n/translation_handler.dart';
 import 'package:kasie_transie_library/maps/association_route_maps.dart';
 import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/messaging/heartbeat.dart';
 import 'package:kasie_transie_library/utils/device_background_location.dart';
+import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/navigator_utils.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
+import 'package:kasie_transie_library/widgets/auth/cell_auth_signin.dart';
 import 'package:kasie_transie_library/widgets/language_and_color_chooser.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -36,9 +40,17 @@ class DashboardState extends State<Dashboard>
   var departures = 0;
   var heartbeats = 0;
   var dispatches = 0;
+
   late StreamSubscription<String> routeChangesSub;
   late StreamSubscription<lm.DispatchRecord> dispatchSub;
+  late StreamSubscription<lm.VehicleHeartbeat> heartbeatSub;
+  late StreamSubscription<lm.VehicleArrival> arrivalSub;
+  late StreamSubscription<lm.VehicleDeparture> departureSub;
 
+
+
+  bool _showVerifier = true;
+  bool _showDashboard = false;
   String? arrivalsText,
       departuresText,
       ownerText,
@@ -59,10 +71,37 @@ class DashboardState extends State<Dashboard>
   }
 
   void _listen() async {
-    dispatchSub = dispatchHelper.dispatchStream.listen((event) {
-      pp('$mm ... delivered a dispatch ${event.vehicleReg}');
+    dispatchSub = fcmBloc.dispatchStream.listen((event) {
+      pp('$mm ... dispatchStream delivered a dispatch ${event.vehicleReg}');
       if (car!.vehicleId == event.vehicleId) {
         dispatches++;
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    });
+    heartbeatSub = fcmBloc.heartbeatStreamStream.listen((event) {
+      pp('$mm ... heartbeatStreamStream delivered a heartbeat ${event.vehicleReg}');
+      if (car!.vehicleId == event.vehicleId) {
+        heartbeats++;
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    });
+    arrivalSub = fcmBloc.vehicleArrivalStream.listen((event) {
+      pp('$mm ... vehicleArrivalStream delivered an arrival ${event.vehicleReg}');
+      if (car!.vehicleId == event.vehicleId) {
+        arrivals++;
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    });
+    departureSub = fcmBloc.vehicleDepartureStream.listen((event) {
+      pp('$mm ... vehicleDepartureStream delivered an arrival ${event.vehicleReg}');
+      if (car!.vehicleId == event.vehicleId) {
+        departures++;
         if (mounted) {
           setState(() {});
         }
@@ -89,7 +128,7 @@ class DashboardState extends State<Dashboard>
   Future _initialize() async {
     pp('\n\n$mm initialize ...');
     await theGreatGeofencer.buildGeofences();
-    await fcmBloc.subscribeToTopics('CarApp');
+    await fcmBloc.subscribeForCar('CarApp');
     heartbeat.startHeartbeat();
     deviceBackgroundLocation.initialize();
 
@@ -104,14 +143,7 @@ class DashboardState extends State<Dashboard>
             context: context);
       }
     });
-// Periodic task registration
-    Workmanager().registerPeriodicTask(
-      "periodic-task-identifier",
-      "simplePeriodicTask",
-      // When no frequency is provided the default 15 minutes is set.
-      // Minimum frequency is 15 min. Android will automatically change your frequency to 15 min if you have configured a lower frequency.
-      frequency: const Duration(minutes: 15),
-    );
+
   }
 
   List<CounterBag> counts = [];
@@ -145,10 +177,41 @@ class DashboardState extends State<Dashboard>
     if (car != null) {
       pp('$mm ........... resident car:');
       myPrettyJsonPrint(car!.toJson());
+      setState(() {
+        _showVerifier = false;
+        _showDashboard = true;
+      });
       await _getCounts();
       _initialize();
-    } else {}
-    setState(() {});
+    } else {
+      setState(() {
+        _showVerifier = true;
+        _showDashboard = false;
+      });
+    }
+  }
+
+  Future<void> _navigateToVehicleList() async {
+
+    final ass = await prefs.getAssociation();
+    try {
+      if (mounted && ass != null) {
+        final res = await navigateWithScale( VehicleList(association: ass!,), context);
+        if (res is lib.Vehicle) {
+              pp('$mm ... back from vehicle list ... car: ${res.vehicleReg}');
+              if (mounted) {
+                setState(() {
+                  car = res;
+                });
+              }
+              _initialize();
+            }
+
+        _getCar();
+      }
+    } catch (e) {
+      print(e);
+    }
   }
 
   void _navigateToMap() {
@@ -163,7 +226,7 @@ class DashboardState extends State<Dashboard>
 
   void _navigateToColor() async {
     final colorAndLocale =
-        await navigateWithScale(const LanguageAndColorChooser(), context);
+        await navigateWithScale( LanguageAndColorChooser(onLanguageChosen: (){},), context);
     if (colorAndLocale == null) {
       return;
     }
@@ -183,135 +246,158 @@ class DashboardState extends State<Dashboard>
 
   @override
   Widget build(BuildContext context) {
+    pp('$mm .... build method .... ${E.redDot} check that this happens before going to car list');
     return SafeArea(
         child: Scaffold(
-      appBar: AppBar(
-        title: Text(
-          dashboardText == null ? 'Dashboard' : dashboardText!,
-          style: myTextStyleLarge(context),
-        ),
-        actions: [
-          IconButton(
-              onPressed: () {
-                _navigateToColor();
-              },
-              icon: Icon(
-                Icons.color_lens,
-                color: Theme.of(context).primaryColor,
-              )),
-          IconButton(
-              onPressed: () {
-                _navigateToMap();
-              },
-              icon: Icon(
-                Icons.map,
-                color: Theme.of(context).primaryColor,
-              )),
-          IconButton(
-              onPressed: () {
-                _navigateToQRCode();
-              },
-              icon: Icon(
-                Icons.qr_code,
-                color: Theme.of(context).primaryColor,
-              )),
-          IconButton(
-              onPressed: () {
-                getDirections();
-              },
-              icon: Icon(
-                Icons.directions,
-                color: Theme.of(context).primaryColor,
-              ))
-        ],
-      ),
-      body: car == null
-          ? Container(
-              color: Colors.amber,
-            )
-          : Card(
-              shape: getRoundedBorder(radius: 16),
-              elevation: 2,
-              child: Column(
-                children: [
-                  const SizedBox(
-                    height: 64,
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      _getCounts();
-                    },
-                    child: Text(
-                      '${car!.vehicleReg}',
-                      style: myTextStyleLargePrimaryColor(context),
-                    ),
-                  ),
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  Text(
-                    '${car!.make} ${car!.model} - ${car!.year}',
-                    style: myTextStyleMedium(context),
-                  ),
-                  const SizedBox(
-                    height: 48,
-                  ),
-                  Text(
-                    ownerText == null ? 'Owner' : ownerText!,
-                    style: myTextStyleSmall(context),
-                  ),
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  Text(
-                    car!.ownerName == null ? 'Owner Unknown' : car!.ownerName!,
-                    style: myTextStyleMediumLargeWithSize(context, 20),
-                  ),
-                  const SizedBox(
-                    height: 32,
-                  ),
-                  Expanded(
-                      child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: GestureDetector(
-                      onTap: () {
-                        _getCounts();
-                      },
-                      child: GridView(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 2,
-                                crossAxisSpacing: 2),
-                        children: [
-                          NumberWidget(
-                              title: arrivalsText == null
-                                  ? 'Arrivals'
-                                  : arrivalsText!,
-                              number: arrivals),
-                          NumberWidget(
-                              title: departuresText == null
-                                  ? 'Departures'
-                                  : departuresText!,
-                              number: departures),
-                          NumberWidget(
-                              title: heartbeatsText == null
-                                  ? 'Heartbeats'
-                                  : heartbeatsText!,
-                              number: heartbeats),
-                          NumberWidget(
-                              title: dispatchText == null
-                                  ? 'Dispatches'
-                                  : dispatchText!,
-                              number: dispatches),
-                        ],
-                      ),
-                    ),
-                  )),
-                ],
+            appBar: AppBar(
+              leading: const SizedBox(),
+              title: Text(
+                dashboardText == null ? 'Dashboard' : dashboardText!,
+                style: myTextStyleMediumLargeWithColor(
+                    context, Theme.of(context).primaryColorLight, 16),
               ),
+              actions: [
+                IconButton(
+                    onPressed: () {
+                      _navigateToColor();
+                    },
+                    icon: Icon(
+                      Icons.color_lens,
+                      color: Theme.of(context).primaryColor,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      _navigateToMap();
+                    },
+                    icon: Icon(
+                      Icons.map,
+                      color: Theme.of(context).primaryColor,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      _navigateToQRCode();
+                    },
+                    icon: Icon(
+                      Icons.qr_code,
+                      color: Theme.of(context).primaryColor,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      getDirections();
+                    },
+                    icon: Icon(
+                      Icons.directions,
+                      color: Theme.of(context).primaryColor,
+                    ))
+              ],
             ),
-    ));
+            body: Stack(
+              children: [
+                _showDashboard
+                    ? Card(
+                        shape: getRoundedBorder(radius: 16),
+                        elevation: 2,
+                        child: Column(
+                          children: [
+                            const SizedBox(
+                              height: 64,
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                _getCounts();
+                              },
+                              child: Text(
+                                car == null ? '' : '${car!.vehicleReg}',
+                                style: myTextStyleLargePrimaryColor(context),
+                              ),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            Text(
+                              car == null
+                                  ? ''
+                                  : '${car!.make} ${car!.model} - ${car!.year}',
+                              style: myTextStyleMedium(context),
+                            ),
+                            const SizedBox(
+                              height: 48,
+                            ),
+                            Text(
+                              ownerText == null ? 'Owner' : ownerText!,
+                              style: myTextStyleSmall(context),
+                            ),
+                            const SizedBox(
+                              height: 8,
+                            ),
+                            Text(
+                              car == null
+                                  ? ''
+                                  : car!.ownerName == null
+                                      ? 'Owner Unknown'
+                                      : car!.ownerName!,
+                              style:
+                                  myTextStyleMediumLargeWithSize(context, 20),
+                            ),
+                            const SizedBox(
+                              height: 32,
+                            ),
+                            Expanded(
+                                child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: GestureDetector(
+                                onTap: () {
+                                  _getCounts();
+                                },
+                                child: GridView(
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          mainAxisSpacing: 2,
+                                          crossAxisSpacing: 2),
+                                  children: [
+                                    NumberWidget(
+                                        title: arrivalsText == null
+                                            ? 'Arrivals'
+                                            : arrivalsText!,
+                                        number: arrivals),
+                                    NumberWidget(
+                                        title: departuresText == null
+                                            ? 'Departures'
+                                            : departuresText!,
+                                        number: departures),
+                                    NumberWidget(
+                                        title: heartbeatsText == null
+                                            ? 'Heartbeats'
+                                            : heartbeatsText!,
+                                        number: heartbeats),
+                                    NumberWidget(
+                                        title: dispatchText == null
+                                            ? 'Dispatches'
+                                            : dispatchText!,
+                                        number: dispatches),
+                                  ],
+                                ),
+                              ),
+                            )),
+                          ],
+                        ),
+                      )
+                    : const SizedBox(),
+                _showVerifier
+                    ? CustomPhoneVerification(
+                        onUserAuthenticated: (user) {
+                          setState(() {
+                            _showDashboard = true;
+                            _showVerifier = false;
+                          });
+                          _navigateToVehicleList();
+                        },
+                        onError: () {},
+                        onCancel: () {}, onLanguageChosen: (){},)
+                    : const SizedBox(),
+              ],
+            )));
   }
 }
 

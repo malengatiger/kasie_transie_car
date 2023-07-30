@@ -23,16 +23,16 @@ class AssociationListState extends State<AssociationList>
   void initState() {
     _controller = AnimationController(vsync: this);
     super.initState();
-    _getData();
+    getAssociations();
   }
 
-  void _getData() async {
+  void getAssociations() async {
     pp('$mm  ... getting data ....... ');
     setState(() {
       busy = true;
     });
     try {
-      assocList = await listApiDog.getAssociations();
+      assocList = await listApiDog.getAssociations(true);
       pp('$mm ...... associations found: ${assocList.length}');
     } catch (e) {
       pp(e);
@@ -73,7 +73,7 @@ class AssociationListState extends State<AssociationList>
                         final ass = assocList.elementAt(index);
                         return GestureDetector(
                           onTap: (){
-                            navigateWithScale(const VehicleList(), context);
+                            navigateWithScale( VehicleList(association: ass,), context);
                           },
                           child: Card(
                             shape: getRoundedBorder(radius: 16),

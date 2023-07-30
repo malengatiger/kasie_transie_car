@@ -2,22 +2,23 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/dashboard.dart';
-import 'package:kasie_transicar/ui/phone_auth_signin.dart';
 import 'package:kasie_transie_library/bloc/app_auth.dart';
-import 'package:kasie_transie_library/bloc/data_api_dog.dart';
 import 'package:kasie_transie_library/bloc/list_api_dog.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
 import 'package:kasie_transie_library/isolates/country_cities_isolate.dart';
+import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/initializer.dart';
 import 'package:kasie_transie_library/utils/navigator_utils.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:badges/badges.dart' as bd;
+import 'package:kasie_transie_library/widgets/auth/cell_auth_signin.dart';
 
 class VehicleList extends StatefulWidget {
-  const VehicleList({Key? key}) : super(key: key);
+  const VehicleList({Key? key, required this.association}) : super(key: key);
 
+  final lm.Association association;
   @override
   VehicleListState createState() => VehicleListState();
 }
@@ -32,12 +33,13 @@ class VehicleListState extends State<VehicleList>
   var carsToDisplay = <lm.Vehicle>[];
   late StreamSubscription<bool> compSubscription;
   lm.Association? ass;
+
   @override
   void initState() {
     _controller = AnimationController(vsync: this);
     super.initState();
     _listen();
-    _checkAuth();
+    _getVehicles();
   }
 
   void _listen() async {
@@ -55,19 +57,6 @@ class VehicleListState extends State<VehicleList>
     });
   }
 
-  void _checkAuth() async {
-    pp('$mm ... check auth');
-    final v = await prefs.getCar();
-    ass = await prefs.getAssociation();
-    if (v == null && ass == null) {
-      _navigateToAuth();
-      return;
-    } else if (v != null) {
-      _navigateToDashboard();
-    }
-    _getVehicles();
-  }
-
   void _getVehicles() async {
     pp('$mm ........... _getVehicles for ${ass!.associationName}');
     myPrettyJsonPrint(ass!.toJson());
@@ -76,15 +65,7 @@ class VehicleListState extends State<VehicleList>
       busy = true;
     });
     try {
-      cars =
-          await listApiDog.getAssociationVehicles(ass!.associationId!, false);
-      cars.sort((a, b) => a.vehicleReg!.compareTo(b.vehicleReg!));
-
-      for (var element in cars) {
-        _carPlates.add(element.vehicleReg!);
-        carsToDisplay.add(element);
-      }
-      pp('$mm ..... cars found: ${cars.length}');
+      await _fetch();
     } catch (e) {
       pp(e);
     }
@@ -94,32 +75,23 @@ class VehicleListState extends State<VehicleList>
     });
   }
 
-  Future<void> _navigateToAuth() async {
-    await navigateWithScale(
-        CellPhoneAuthSignin(dataApiDog: dataApiDog), context);
-    pp('$mm ........... _navigateToAuth back to Mama!');
-    ass = await prefs.getAssociation();
-    if (ass == null) {
-      pp('$mm how the fuck is the ass null??? ${E.redDot}${E.redDot}${E.redDot}');
-      throw Exception('no ass!');
+  Future<void> _fetch() async {
+    cars = await listApiDog.getAssociationVehicles(widget.association.associationId!, false);
+    cars.sort((a, b) => a.vehicleReg!.compareTo(b.vehicleReg!));
+    _carPlates.clear();
+    for (var element in cars) {
+      _carPlates.add(element.vehicleReg!);
+      carsToDisplay.add(element);
     }
-    pp('$mm ........... association found: ${ass!.associationName}');
-    _getVehicles();
+    pp('$mm ..... cars found: ${cars.length}');
+    setState(() {});
   }
-
+  
   //
   bool initializing = false;
   Timer? timer;
   int secondsElapsed = 0;
   String formattedTime = '';
-  void _startTimer() {
-    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        secondsElapsed = timer.tick;
-        formattedTime = getFormattedTime(timeInSeconds: secondsElapsed);
-      });
-    });
-  }
 
   lm.Vehicle? car;
   Future _onCarSelected(lm.Vehicle car) async {
@@ -127,26 +99,14 @@ class VehicleListState extends State<VehicleList>
         ' start loading initial data ...');
     this.car = car;
     myPrettyJsonPrint(car.toJson());
-    setState(() {
-      initializing = true;
-    });
-    _startTimer();
+
     try {
       await prefs.saveCar(car);
-      final res = await appAuth.signInVehicle();
-      pp('$mm car should be authenticated by now; result: $res. ... on to Cleveland Browns ...');
-      await listApiDog.getCountries();
-      final ass = await listApiDog.getAssociationById(car.associationId!);
-      final country = listApiDog.getCountryById(ass.countryId!);
-      if (country != null) {
-        countryCitiesIsolate.getCountryCities(country.countryId!);
+      fcmBloc.subscribeForCar("CarApp");
+      if (mounted) {
+        Navigator.of(context).pop(car);
+        return;
       }
-      await initializer.initialize();
-      timer!.cancel();
-      setState(() {
-        doneInitializing = true;
-      });
-      _navigateToDashboard();
       //
     } catch (e) {
       pp(e);
@@ -158,15 +118,6 @@ class VehicleListState extends State<VehicleList>
   }
 
   bool doneInitializing = false;
-
-  void _navigateToDashboard() {
-    pp('$mm Navigate to the Dashboard!! '
-        ' ${E.leaf}${E.leaf}${E.leaf}');
-    if (mounted) {
-      Navigator.of(context).pop();
-      navigateWithScale(const Dashboard(), context);
-    }
-  }
 
   final _carPlates = <String>[];
 
@@ -208,8 +159,8 @@ class VehicleListState extends State<VehicleList>
 
     return null;
   }
-  void _close(lm.Vehicle country) {
 
+  void _close(lm.Vehicle country) {
     pp('$mm Vehicle selected: ${country.vehicleReg}, popping out');
   }
 
@@ -229,63 +180,69 @@ class VehicleListState extends State<VehicleList>
             appBar: AppBar(
               title: Text(
                 'Association Vehicles',
-                style: myTextStyleLarge(context),
+                style: myTextStyleMediumLargeWithColor(
+                    context, Theme.of(context).primaryColorLight, 16),
               ),
               actions: [
-                IconButton(onPressed: (){
-                  _getVehicles();
-                }, icon: const Icon(Icons.refresh))
+                IconButton(
+                    onPressed: () {
+                      _getVehicles();
+                    },
+                    icon: const Icon(Icons.refresh))
               ],
-              bottom: PreferredSize(preferredSize: const Size.fromHeight(100), child: Column(
-                children: [
-                  Row(
+              bottom: PreferredSize(
+                  preferredSize: const Size.fromHeight(100),
+                  child: Column(
                     children: [
-                      SizedBox(
-                        width: 300,
-                        child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 8.0, horizontal: 8.0),
-                            child: TextField(
-                              controller: _textEditingController,
-                              onChanged: (text) {
-                                pp(' ........... changing to: $text');
-                                _runFilter(text);
-                              },
-                              decoration: InputDecoration(
-                                  label: Text(
-                                    search == null ? 'Search' : search!,
-                                    style: myTextStyleSmall(
-                                      context,
-                                    ),
-                                  ),
-                                  icon: Icon(
-                                    Icons.search,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                  border: const OutlineInputBorder(),
-                                  hintText: searchVehicles == null
-                                      ? 'Search Vehicles'
-                                      : searchVehicles!,
-                                  hintStyle: myTextStyleSmallWithColor(
-                                      context, Theme.of(context).primaryColor)),
-                            )),
-                      ),
-                      const SizedBox(
-                        width: 4,
-                      ),
-                      bd.Badge(
-                        position: bd.BadgePosition.topEnd(),
-                        badgeContent: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text('${carsToDisplay.length}',
-                              style: myTextStyleSmallWithColor(
-                                  context, Colors.white)),
-                        ),
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 300,
+                            child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 8.0, horizontal: 8.0),
+                                child: TextField(
+                                  controller: _textEditingController,
+                                  onChanged: (text) {
+                                    pp(' ........... changing to: $text');
+                                    _runFilter(text);
+                                  },
+                                  decoration: InputDecoration(
+                                      label: Text(
+                                        search == null ? 'Search' : search!,
+                                        style: myTextStyleSmall(
+                                          context,
+                                        ),
+                                      ),
+                                      icon: Icon(
+                                        Icons.search,
+                                        color: Theme.of(context).primaryColor,
+                                      ),
+                                      border: const OutlineInputBorder(),
+                                      hintText: searchVehicles == null
+                                          ? 'Search Vehicles'
+                                          : searchVehicles!,
+                                      hintStyle: myTextStyleSmallWithColor(
+                                          context,
+                                          Theme.of(context).primaryColor)),
+                                )),
+                          ),
+                          const SizedBox(
+                            width: 4,
+                          ),
+                          bd.Badge(
+                            position: bd.BadgePosition.topEnd(),
+                            badgeContent: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text('${carsToDisplay.length}',
+                                  style: myTextStyleSmallWithColor(
+                                      context, Colors.white)),
+                            ),
+                          )
+                        ],
                       )
                     ],
-                  )
-                ],
-              )),
+                  )),
             ),
             body: Stack(
               children: [
@@ -328,7 +285,8 @@ class VehicleListState extends State<VehicleList>
                                     child: ListView.builder(
                                         itemCount: carsToDisplay.length,
                                         itemBuilder: (ctx, index) {
-                                          final ass = carsToDisplay.elementAt(index);
+                                          final ass =
+                                              carsToDisplay.elementAt(index);
                                           return GestureDetector(
                                             onTap: () {
                                               _onCarSelected(ass);
@@ -440,14 +398,6 @@ class VehicleListState extends State<VehicleList>
                                   const SizedBox(
                                     height: 64,
                                   ),
-                                  doneInitializing
-                                      ? ElevatedButton(
-                                          onPressed: () {
-                                            _navigateToDashboard();
-                                          },
-                                          child: const Text(
-                                              'Done, please proceed'))
-                                      : const SizedBox(),
                                 ],
                               ),
                             ),
