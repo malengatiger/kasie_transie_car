@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:kasie_transicar/ui/car_qrcode.dart';
 import 'package:kasie_transicar/ui/vehicle_list.dart';
 import 'package:kasie_transie_library/bloc/dispatch_helper.dart';
@@ -46,8 +47,6 @@ class DashboardState extends State<Dashboard>
   late StreamSubscription<lm.VehicleHeartbeat> heartbeatSub;
   late StreamSubscription<lm.VehicleArrival> arrivalSub;
   late StreamSubscription<lm.VehicleDeparture> departureSub;
-
-
 
   bool _showVerifier = true;
   bool _showDashboard = false;
@@ -196,7 +195,7 @@ class DashboardState extends State<Dashboard>
     final ass = await prefs.getAssociation();
     try {
       if (mounted && ass != null) {
-        final res = await navigateWithScale( VehicleList(association: ass!,), context);
+        final res = await navigateWithScale( VehicleList(association: ass,), context);
         if (res is lib.Vehicle) {
               pp('$mm ... back from vehicle list ... car: ${res.vehicleReg}');
               if (mounted) {
@@ -210,7 +209,7 @@ class DashboardState extends State<Dashboard>
         _getCar();
       }
     } catch (e) {
-      print(e);
+      pp(e);
     }
   }
 
@@ -281,14 +280,7 @@ class DashboardState extends State<Dashboard>
                       Icons.qr_code,
                       color: Theme.of(context).primaryColor,
                     )),
-                IconButton(
-                    onPressed: () {
-                      getDirections();
-                    },
-                    icon: Icon(
-                      Icons.directions,
-                      color: Theme.of(context).primaryColor,
-                    ))
+
               ],
             ),
             body: Stack(
@@ -344,7 +336,7 @@ class DashboardState extends State<Dashboard>
                             ),
                             Expanded(
                                 child: Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: const EdgeInsets.all(20.0),
                               child: GestureDetector(
                                 onTap: () {
                                   _getCounts();
@@ -410,27 +402,29 @@ class NumberWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final num = NumberFormat.decimalPattern().format(number);
     return Card(
       shape: getRoundedBorder(radius: 16),
       elevation: 8,
       child: SizedBox(
         height: 120,
         width: 120,
-        child: Column(
-          children: [
-            const SizedBox(
-              height: 40,
-            ),
-            Text(
-              '$number',
-              style: myNumberStyleLargerWithColor(
-                  Theme.of(context).primaryColor, 32, context),
-            ),
-            Text(
-              title,
-              style: myTextStyleSmall(context),
-            ),
-          ],
+        child: Center(
+          child: Column(mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                num,
+                style: myNumberStyleLargerWithColor(
+                    Theme.of(context).primaryColor, 32, context),
+              ),
+              gapH4,
+              Text(
+                title,
+                style: myTextStyleSmall(context),
+              ),
+            ],
+          ),
         ),
       ),
     );

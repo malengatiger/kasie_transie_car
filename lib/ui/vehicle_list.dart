@@ -1,19 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:kasie_transicar/ui/dashboard.dart';
-import 'package:kasie_transie_library/bloc/app_auth.dart';
 import 'package:kasie_transie_library/bloc/list_api_dog.dart';
 import 'package:kasie_transie_library/data/schemas.dart' as lm;
-import 'package:kasie_transie_library/isolates/country_cities_isolate.dart';
 import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
 import 'package:kasie_transie_library/utils/initializer.dart';
-import 'package:kasie_transie_library/utils/navigator_utils.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:badges/badges.dart' as bd;
-import 'package:kasie_transie_library/widgets/auth/cell_auth_signin.dart';
 
 class VehicleList extends StatefulWidget {
   const VehicleList({Key? key, required this.association}) : super(key: key);
@@ -58,8 +53,8 @@ class VehicleListState extends State<VehicleList>
   }
 
   void _getVehicles() async {
-    pp('$mm ........... _getVehicles for ${ass!.associationName}');
-    myPrettyJsonPrint(ass!.toJson());
+    pp('$mm ........... _getVehicles for ${widget.association.associationName}');
+    myPrettyJsonPrint(widget.association.toJson());
 
     setState(() {
       busy = true;
@@ -76,6 +71,8 @@ class VehicleListState extends State<VehicleList>
   }
 
   Future<void> _fetch() async {
+    pp('$mm ........... _fetch for ${widget.association.associationName}');
+
     cars = await listApiDog.getAssociationVehicles(widget.association.associationId!, false);
     cars.sort((a, b) => a.vehicleReg!.compareTo(b.vehicleReg!));
     _carPlates.clear();
