@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:kasie_transicar/ui/dashboard.dart';
 import 'package:kasie_transicar/widgets/splash_page.dart';
 import 'package:kasie_transie_library/bloc/theme_bloc.dart';
-import 'package:kasie_transie_library/data/schemas.dart';
+import 'package:kasie_transie_library/data/schemas.dart' as lib;
 import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
@@ -20,7 +20,7 @@ fb.User? fbAuthedUser;
 var themeIndex = 0;
 // String? locale;
 const mx = '🔵🔵🔵🔵🔵🔵🔵🔵🔵🔵 KasieTransie Car : main 🔵🔵';
-Vehicle? vehicle;
+lib.Vehicle? vehicle;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

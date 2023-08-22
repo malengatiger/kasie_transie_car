@@ -32,7 +32,7 @@ class Dashboard extends StatefulWidget {
 }
 
 class DashboardState extends State<Dashboard>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _controller;
   final mm = '🌀🌀🌀🌀🌀🌀🌀🌀Dashboard 🌀🌀';
 
@@ -48,7 +48,6 @@ class DashboardState extends State<Dashboard>
   late StreamSubscription<lm.VehicleArrival> arrivalSub;
   late StreamSubscription<lm.VehicleDeparture> departureSub;
 
-  bool _showVerifier = true;
   bool _showDashboard = false;
   String? arrivalsText,
       departuresText,
@@ -62,11 +61,45 @@ class DashboardState extends State<Dashboard>
 
   @override
   void initState() {
+    WidgetsBinding.instance.addObserver(this);
     _controller = AnimationController(vsync: this);
     super.initState();
+    _control();
+  }
+
+  void _control() async {
+    await _getCar();
     _listen();
     _setTexts();
-    _getCar();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        pp("$mm ...RESUMED");
+        break;
+      case AppLifecycleState.inactive:
+        pp("$mm ...INACTIVE");
+        break;
+      case AppLifecycleState.paused:
+        pp("$mm ...PAUSED");
+        handleBackgroundState();
+        break;
+      case AppLifecycleState.detached:
+        pp("$mm ...DETACHED");
+        handleBackgroundState();
+        break;
+      default:
+        pp('$mm ... unknown state: ${state.name}');
+        break;
+    }
+  }
+
+  Future<void> handleBackgroundState() async {
+    pp('$mm ... app going into background state, do a heartbeat');
+    await heartbeatManager.addHeartbeat();
+    pp('$mm ... special heartbeat indicating that app goes to background');
   }
 
   void _listen() async {
@@ -127,8 +160,8 @@ class DashboardState extends State<Dashboard>
   Future _initialize() async {
     pp('\n\n$mm initialize ...');
     await theGreatGeofencer.buildGeofences();
-    await fcmBloc.subscribeForCar('CarApp');
-    heartbeat.startHeartbeat();
+    await fcmBloc.subscribeForCar('Taxi');
+    heartbeatManager.startHeartbeat();
     deviceBackgroundLocation.initialize();
 
     routeChangesSub = fcmBloc.routeChangesStream.listen((event) {
@@ -142,7 +175,6 @@ class DashboardState extends State<Dashboard>
             context: context);
       }
     });
-
   }
 
   List<CounterBag> counts = [];
@@ -171,40 +203,56 @@ class DashboardState extends State<Dashboard>
     setState(() {});
   }
 
-  void _getCar() async {
+  Future _getCar() async {
     car = await prefs.getCar();
     if (car != null) {
       pp('$mm ........... resident car:');
       myPrettyJsonPrint(car!.toJson());
-      setState(() {
-        _showVerifier = false;
-        _showDashboard = true;
-      });
       await _getCounts();
       _initialize();
     } else {
-      setState(() {
-        _showVerifier = true;
-        _showDashboard = false;
-      });
+      _navigateToPhoneSignIn();
+    }
+  }
+  void _navigateToPhoneSignIn() async {
+    final user = await navigateWithScale(
+        CustomPhoneVerification(
+          onUserAuthenticated: (user) {
+            setState(() {
+              _showDashboard = true;
+            });
+            _navigateToVehicleList();
+          },
+          onError: () {},
+          onCancel: () {},
+          onLanguageChosen: () {},
+        ),
+        context);
+    if (user is lib.User) {
+      pp('$mm ... back from CustomPhoneVerification with user: ${user.toJson()}');
+      await _getCounts();
+      _initialize();
     }
   }
 
   Future<void> _navigateToVehicleList() async {
-
     final ass = await prefs.getAssociation();
     try {
       if (mounted && ass != null) {
-        final res = await navigateWithScale( VehicleList(association: ass,), context);
+        final res = await navigateWithScale(
+            VehicleList(
+              association: ass,
+            ),
+            context);
         if (res is lib.Vehicle) {
-              pp('$mm ... back from vehicle list ... car: ${res.vehicleReg}');
-              if (mounted) {
-                setState(() {
-                  car = res;
-                });
-              }
-              _initialize();
-            }
+          pp('$mm ... back from vehicle list ... car: ${res.vehicleReg}');
+          if (mounted) {
+            setState(() {
+              car = res;
+            });
+          }
+          _initialize();
+        }
 
         _getCar();
       }
@@ -224,8 +272,11 @@ class DashboardState extends State<Dashboard>
   }
 
   void _navigateToColor() async {
-    final colorAndLocale =
-        await navigateWithScale( LanguageAndColorChooser(onLanguageChosen: (){},), context);
+    final colorAndLocale = await navigateWithScale(
+        LanguageAndColorChooser(
+          onLanguageChosen: () {},
+        ),
+        context);
     if (colorAndLocale == null) {
       return;
     }
@@ -280,117 +331,107 @@ class DashboardState extends State<Dashboard>
                       Icons.qr_code,
                       color: Theme.of(context).primaryColor,
                     )),
-
               ],
             ),
             body: Stack(
               children: [
-                _showDashboard
-                    ? Card(
-                        shape: getRoundedBorder(radius: 16),
-                        elevation: 2,
-                        child: Column(
-                          children: [
-                            const SizedBox(
-                              height: 64,
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                _getCounts();
-                              },
-                              child: Text(
-                                car == null ? '' : '${car!.vehicleReg}',
-                                style: myTextStyleLargePrimaryColor(context),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Card(
+                          shape: getRoundedBorder(radius: 16),
+                          elevation: 2,
+                          child: Column(
+                            children: [
+                              const SizedBox(
+                                height: 64,
                               ),
-                            ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            Text(
-                              car == null
-                                  ? ''
-                                  : '${car!.make} ${car!.model} - ${car!.year}',
-                              style: myTextStyleMedium(context),
-                            ),
-                            const SizedBox(
-                              height: 48,
-                            ),
-                            Text(
-                              ownerText == null ? 'Owner' : ownerText!,
-                              style: myTextStyleSmall(context),
-                            ),
-                            const SizedBox(
-                              height: 8,
-                            ),
-                            Text(
-                              car == null
-                                  ? ''
-                                  : car!.ownerName == null
-                                      ? 'Owner Unknown'
-                                      : car!.ownerName!,
-                              style:
-                                  myTextStyleMediumLargeWithSize(context, 20),
-                            ),
-                            const SizedBox(
-                              height: 32,
-                            ),
-                            Expanded(
-                                child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: GestureDetector(
+                              GestureDetector(
                                 onTap: () {
                                   _getCounts();
                                 },
-                                child: GridView(
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          mainAxisSpacing: 2,
-                                          crossAxisSpacing: 2),
-                                  children: [
-                                    NumberWidget(
-                                        title: arrivalsText == null
-                                            ? 'Arrivals'
-                                            : arrivalsText!,
-                                        number: arrivals),
-                                    NumberWidget(
-                                        title: departuresText == null
-                                            ? 'Departures'
-                                            : departuresText!,
-                                        number: departures),
-                                    NumberWidget(
-                                        title: heartbeatsText == null
-                                            ? 'Heartbeats'
-                                            : heartbeatsText!,
-                                        number: heartbeats),
-                                    NumberWidget(
-                                        title: dispatchText == null
-                                            ? 'Dispatches'
-                                            : dispatchText!,
-                                        number: dispatches),
-                                  ],
+                                child: Text(
+                                  car == null ? '' : '${car!.vehicleReg}',
+                                  style: myTextStyleLargePrimaryColor(context),
                                 ),
                               ),
-                            )),
-                          ],
+                              const SizedBox(
+                                height: 8,
+                              ),
+                              Text(
+                                car == null
+                                    ? ''
+                                    : '${car!.make} ${car!.model} - ${car!.year}',
+                                style: myTextStyleMedium(context),
+                              ),
+                              const SizedBox(
+                                height: 48,
+                              ),
+                              Text(
+                                ownerText == null ? 'Owner' : ownerText!,
+                                style: myTextStyleSmall(context),
+                              ),
+                              const SizedBox(
+                                height: 8,
+                              ),
+                              Text(
+                                car == null
+                                    ? ''
+                                    : car!.ownerName == null
+                                        ? 'Owner Unknown'
+                                        : car!.ownerName!,
+                                style:
+                                    myTextStyleMediumLargeWithSize(context, 20),
+                              ),
+                              const SizedBox(
+                                height: 32,
+                              ),
+                              Expanded(
+                                  child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    _getCounts();
+                                  },
+                                  child: GridView(
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 2,
+                                            mainAxisSpacing: 2,
+                                            crossAxisSpacing: 2),
+                                    children: [
+                                      NumberWidget(
+                                          title: arrivalsText == null
+                                              ? 'Arrivals'
+                                              : arrivalsText!,
+                                          number: arrivals),
+                                      NumberWidget(
+                                          title: departuresText == null
+                                              ? 'Departures'
+                                              : departuresText!,
+                                          number: departures),
+                                      NumberWidget(
+                                          title: heartbeatsText == null
+                                              ? 'Heartbeats'
+                                              : heartbeatsText!,
+                                          number: heartbeats),
+                                      NumberWidget(
+                                          title: dispatchText == null
+                                              ? 'Dispatches'
+                                              : dispatchText!,
+                                          number: dispatches),
+                                    ],
+                                  ),
+                                ),
+                              )),
+                            ],
+                          ),
                         ),
-                      )
-                    : const SizedBox(),
-                _showVerifier
-                    ? CustomPhoneVerification(
-                        onUserAuthenticated: (user) {
-                          setState(() {
-                            _showDashboard = true;
-                            _showVerifier = false;
-                          });
-                          _navigateToVehicleList();
-                        },
-                        onError: () {},
-                        onCancel: () {}, onLanguageChosen: (){},)
-                    : const SizedBox(),
+                )
+
               ],
             )));
   }
+
 }
 
 class NumberWidget extends StatelessWidget {
@@ -410,7 +451,8 @@ class NumberWidget extends StatelessWidget {
         height: 120,
         width: 120,
         child: Center(
-          child: Column(mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(

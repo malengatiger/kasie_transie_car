@@ -6,9 +6,10 @@ import 'package:kasie_transie_library/data/schemas.dart' as lm;
 import 'package:kasie_transie_library/messaging/fcm_bloc.dart';
 import 'package:kasie_transie_library/utils/emojis.dart';
 import 'package:kasie_transie_library/utils/functions.dart';
-import 'package:kasie_transie_library/utils/initializer.dart';
+import 'package:kasie_transie_library/utils/navigator_utils.dart';
 import 'package:kasie_transie_library/utils/prefs.dart';
 import 'package:badges/badges.dart' as bd;
+import 'package:kasie_transie_library/widgets/scanners/scan_vehicle_for_install.dart';
 
 class VehicleList extends StatefulWidget {
   const VehicleList({Key? key, required this.association}) : super(key: key);
@@ -33,23 +34,7 @@ class VehicleListState extends State<VehicleList>
   void initState() {
     _controller = AnimationController(vsync: this);
     super.initState();
-    _listen();
     _getVehicles();
-  }
-
-  void _listen() async {
-    compSubscription = initializer.completionStream.listen((completed) {
-      pp('$mm ... initializer.completionStream delivered : $completed');
-      if (timer != null) {
-        timer!.cancel();
-      }
-      if (mounted) {
-        setState(() {
-          initializing = false;
-          doneInitializing = true;
-        });
-      }
-    });
   }
 
   void _getVehicles() async {
@@ -73,7 +58,8 @@ class VehicleListState extends State<VehicleList>
   Future<void> _fetch() async {
     pp('$mm ........... _fetch for ${widget.association.associationName}');
 
-    cars = await listApiDog.getAssociationVehicles(widget.association.associationId!, false);
+    cars = await listApiDog.getAssociationVehicles(
+        widget.association.associationId!, false);
     cars.sort((a, b) => a.vehicleReg!.compareTo(b.vehicleReg!));
     _carPlates.clear();
     for (var element in cars) {
@@ -83,12 +69,8 @@ class VehicleListState extends State<VehicleList>
     pp('$mm ..... cars found: ${cars.length}');
     setState(() {});
   }
-  
+
   //
-  bool initializing = false;
-  Timer? timer;
-  int secondsElapsed = 0;
-  String formattedTime = '';
 
   lm.Vehicle? car;
   Future _onCarSelected(lm.Vehicle car) async {
@@ -107,10 +89,12 @@ class VehicleListState extends State<VehicleList>
       //
     } catch (e) {
       pp(e);
-      showSnackBar(
-          duration: const Duration(seconds: 10),
-          message: 'Initialization failed: $e',
-          context: context);
+      if (mounted) {
+        showSnackBar(
+            duration: const Duration(seconds: 10),
+            message: 'Initialization failed: $e',
+            context: context);
+      }
     }
   }
 
@@ -157,15 +141,19 @@ class VehicleListState extends State<VehicleList>
     return null;
   }
 
-  void _close(lm.Vehicle country) {
-    pp('$mm Vehicle selected: ${country.vehicleReg}, popping out');
+  void _navigateToScan() async {
+    final mCar =
+        await navigateWithScale(const ScanVehicleForInstall(), context);
+    if (mCar is lm.Vehicle) {
+      car = mCar;
+      _onCarSelected(mCar);
+    }
   }
 
   String? search, searchVehicles;
   @override
   void dispose() {
     _controller.dispose();
-    compSubscription.cancel();
     super.dispose();
   }
 
@@ -175,10 +163,11 @@ class VehicleListState extends State<VehicleList>
     return SafeArea(
         child: Scaffold(
             appBar: AppBar(
+              leading: gapW16,
               title: Text(
                 'Association Vehicles',
                 style: myTextStyleMediumLargeWithColor(
-                    context, Theme.of(context).primaryColorLight, 16),
+                    context, Theme.of(context).primaryColorLight, 20),
               ),
               actions: [
                 IconButton(
@@ -254,153 +243,61 @@ class VehicleListState extends State<VehicleList>
                           ),
                         ),
                       )
-                    : initializing
-                        ? const Center(
-                            child: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 6,
-                                backgroundColor: Colors.yellow,
-                              ),
+                    : Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          children: [
+                            TextButton(
+                                onPressed: () {
+                                  _navigateToScan();
+                                },
+                                child:
+                                    const Text('Scan the vehicle for the app')),
+                            const SizedBox(
+                              height: 48,
                             ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Column(
-                              children: [
-                                const Text('Select the vehicle for the app'),
-                                const SizedBox(
-                                  height: 48,
-                                ),
-                                Expanded(
-                                  child: bd.Badge(
-                                    badgeContent: Text('${cars.length}'),
-                                    badgeStyle: bd.BadgeStyle(
-                                        badgeColor: Colors.green[900]!,
-                                        padding: const EdgeInsets.all(12)),
-                                    child: ListView.builder(
-                                        itemCount: carsToDisplay.length,
-                                        itemBuilder: (ctx, index) {
-                                          final ass =
-                                              carsToDisplay.elementAt(index);
-                                          return GestureDetector(
-                                            onTap: () {
-                                              _onCarSelected(ass);
-                                            },
-                                            child: Card(
-                                              shape:
-                                                  getRoundedBorder(radius: 16),
-                                              elevation: 4,
-                                              child: ListTile(
-                                                title: Text(
-                                                  '${ass.vehicleReg}',
-                                                  style: myTextStyleMediumBold(
-                                                      context),
-                                                ),
-                                                subtitle: Text(
-                                                  '${ass.make} ${ass.model} - ${ass.year}',
-                                                  style:
-                                                      myTextStyleSmall(context),
-                                                ),
-                                                leading: Icon(
-                                                  Icons.car_crash,
-                                                  color: Theme.of(context)
-                                                      .primaryColor,
-                                                ),
-                                              ),
+                            Expanded(
+                              child: bd.Badge(
+                                badgeContent: Text('${cars.length}'),
+                                badgeStyle: bd.BadgeStyle(
+                                    badgeColor: Colors.green[900]!,
+                                    padding: const EdgeInsets.all(12)),
+                                child: ListView.builder(
+                                    itemCount: carsToDisplay.length,
+                                    itemBuilder: (ctx, index) {
+                                      final ass =
+                                          carsToDisplay.elementAt(index);
+                                      return GestureDetector(
+                                        onTap: () {
+                                          _onCarSelected(ass);
+                                        },
+                                        child: Card(
+                                          shape: getRoundedBorder(radius: 16),
+                                          elevation: 4,
+                                          child: ListTile(
+                                            title: Text(
+                                              '${ass.vehicleReg}',
+                                              style: myTextStyleMediumBold(
+                                                  context),
                                             ),
-                                          );
-                                        }),
-                                  ),
-                                )
-                              ],
-                            ),
-                          ),
-                initializing
-                    ? Positioned(
-                        left: 24,
-                        right: 24,
-                        bottom: 60,
-                        top: 60,
-                        child: Card(
-                          shape: getRoundedBorder(radius: 16),
-                          elevation: 16,
-                          child: SizedBox(
-                            height: 460,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                children: [
-                                  const SizedBox(
-                                    height: 16,
-                                  ),
-                                  Text(
-                                    'KasieTransie',
-                                    style: myTextStyleLarge(context),
-                                  ),
-                                  const SizedBox(
-                                    height: 32,
-                                  ),
-                                  Text(
-                                    '${car!.vehicleReg}',
-                                    style: myTextStyleMediumLargeWithColor(
-                                        context, Colors.teal[400]!, 32),
-                                  ),
-                                  const SizedBox(
-                                    height: 48,
-                                  ),
-                                  doneInitializing
-                                      ? const SizedBox()
-                                      : const SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 6,
-                                            backgroundColor: Colors.amber,
+                                            subtitle: Text(
+                                              '${ass.make} ${ass.model} - ${ass.year}',
+                                              style: myTextStyleSmall(context),
+                                            ),
+                                            leading: Icon(
+                                              Icons.car_crash,
+                                              color: Theme.of(context)
+                                                  .primaryColor,
+                                            ),
                                           ),
                                         ),
-                                  const SizedBox(
-                                    height: 24,
-                                  ),
-                                  const Text('Initializing data resources ...'),
-                                  const SizedBox(
-                                    height: 12,
-                                  ),
-                                  Text(
-                                    'This may take a few minutes or so ...',
-                                    style: myTextStyleMediumLargeWithSize(
-                                        context, 16),
-                                  ),
-                                  const SizedBox(
-                                    height: 24,
-                                  ),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Text('Elapsed Time:'),
-                                      const SizedBox(
-                                        width: 8,
-                                      ),
-                                      Text(
-                                        formattedTime,
-                                        style: myTextStyleMediumLargeWithColor(
-                                            context, Colors.amber[700]!, 28),
-                                      ),
-                                      const SizedBox(
-                                        width: 8,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(
-                                    height: 64,
-                                  ),
-                                ],
+                                      );
+                                    }),
                               ),
-                            ),
-                          ),
-                        ))
-                    : const SizedBox(),
+                            )
+                          ],
+                        ),
+                      ),
               ],
             )));
   }
