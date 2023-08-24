@@ -180,7 +180,10 @@ class DashboardState extends State<Dashboard>
   List<CounterBag> counts = [];
 
   Future _getCounts() async {
-    pp('$mm ... get counts ...');
+    pp('$mm ... get counts if car is good ...');
+    if (car == null) {
+      return;
+    }
     counts = await listApiDog.getVehicleCounts(car!.vehicleId!);
     if (counts.isNotEmpty) {
       for (var value in counts) {
@@ -214,6 +217,7 @@ class DashboardState extends State<Dashboard>
       _navigateToPhoneSignIn();
     }
   }
+
   void _navigateToPhoneSignIn() async {
     final user = await navigateWithScale(
         CustomPhoneVerification(
@@ -230,8 +234,7 @@ class DashboardState extends State<Dashboard>
         context);
     if (user is lib.User) {
       pp('$mm ... back from CustomPhoneVerification with user: ${user.toJson()}');
-      await _getCounts();
-      _initialize();
+      _navigateToVehicleList();
     }
   }
 
@@ -366,13 +369,7 @@ class DashboardState extends State<Dashboard>
                               const SizedBox(
                                 height: 48,
                               ),
-                              Text(
-                                ownerText == null ? 'Owner' : ownerText!,
-                                style: myTextStyleSmall(context),
-                              ),
-                              const SizedBox(
-                                height: 8,
-                              ),
+
                               Text(
                                 car == null
                                     ? ''
